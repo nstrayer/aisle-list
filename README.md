@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AIsle-List
 
-## Getting Started
+A smart grocery list app that uses AI to read your handwritten lists and organize items by store aisle.
 
-First, run the development server:
+**[Try it now](https://nickstrayer.me/aisle-list/)**
+
+## How It Works
+
+1. **Snap a photo** of your handwritten grocery list
+2. **AI reads it** - Claude identifies items, meal plans, crossed-out items, and notes
+3. **Choose what to include** - Select which sections you want on your final list
+4. **Shop by aisle** - Items are automatically organized by store section (produce, dairy, meat, etc.)
+
+## Features
+
+- **Handwriting recognition** - Works with messy handwriting, multiple columns, and mixed formats
+- **Smart categorization** - Distinguishes between grocery items, meal plans, and notes
+- **Store-optimized** - Groups items by typical grocery store layout to minimize backtracking
+- **Works offline** - Install as a PWA on your phone for quick access
+- **Privacy-first** - Your API key and images stay on your device
+
+## Installation
+
+Install on your iPhone or Android:
+
+1. Open [nickstrayer.me/aisle-list](https://nickstrayer.me/aisle-list/) in your browser
+2. **iOS**: Tap Share > "Add to Home Screen"
+3. **Android**: Tap the menu > "Install app" or "Add to Home Screen"
+
+## Requirements
+
+You'll need an [Anthropic API key](https://console.anthropic.com/) to use this app. The app calls the Claude API directly from your browser - no server involved.
+
+## Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Built with React, Vite, Tailwind CSS, and the Anthropic SDK.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## License
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
