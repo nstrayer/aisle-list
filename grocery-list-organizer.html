@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Grocery List Organizer - Powered by Claude</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Kroger store section mapping
+        const STORE_SECTIONS = {
+            'Produce': ['lettuce', 'tomato', 'cucumber', 'onion', 'garlic', 'potato', 'carrot', 'celery', 'pepper', 'apple', 'banana', 'orange', 'lemon', 'lime', 'berry', 'berries', 'strawberry', 'grape', 'melon', 'avocado', 'mushroom', 'spinach', 'kale', 'broccoli', 'cauliflower', 'zucchini', 'squash', 'green onion', 'cherry tomato'],
+            'Meat & Seafood': ['chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'shrimp', 'steak', 'ground beef', 'sausage', 'bacon', 'ham', 'chicken breast', 'thigh'],
+            'Dairy & Eggs': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'egg', 'eggs', 'sour cream', 'cottage cheese', 'half and half', 'dairy milk', 'almond milk', 'oat milk'],
+            'Frozen Foods': ['ice cream', 'frozen', 'pizza', 'frozen vegetables', 'frozen fruit', 'frozen dinner', 'ice', 'popsicle', 'frozen berries'],
+            'Bakery': ['bread', 'bagel', 'roll', 'bun', 'croissant', 'muffin', 'donut', 'cake', 'tortilla', 'pita', 'bagel bags'],
+            'Pantry & Canned Goods': ['rice', 'pasta', 'bean', 'beans', 'soup', 'cereal', 'oatmeal', 'flour', 'sugar', 'canned', 'tomato sauce', 'broth', 'stock', 'campbell', 'cannellini beans', 'chickpea', 'lentil', 'chili bean'],
+            'Condiments & Sauces': ['ketchup', 'mustard', 'mayo', 'mayonnaise', 'hot sauce', 'soy sauce', 'olive oil', 'vegetable oil', 'vinegar', 'salad dressing', 'bbq sauce', 'salsa', 'oil', 'honey', 'jam', 'jelly', 'peanut butter'],
+            'International': ['tofu', 'miso', 'curry', 'sushi', 'ramen', 'noodles', 'kimchi', 'tahini', 'shawarma', 'naan', 'miso soup', 'shawarma tofu', 'costco noodles'],
+            'Snacks': ['chip', 'chips', 'cracker', 'cookie', 'candy', 'chocolate', 'popcorn', 'pretzel', 'nut', 'nuts', 'granola', 'trail mix', 'noosa', 'lil noosas'],
+            'Beverages': ['water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'sparkling'],
+            'Household & Cleaning': ['paper towel', 'toilet paper', 'tissue', 'kleenex', 'detergent', 'soap', 'shampoo', 'dish soap', 'cleaning', 'trash bag', 'laundry', 'tide', 'tide pods'],
+            'Other': []
+        };
+
+        function categorizeItem(itemName) {
+            const lowerItem = itemName.toLowerCase();
+
+            for (const [section, keywords] of Object.entries(STORE_SECTIONS)) {
+                if (section === 'Other') continue;
+
+                for (const keyword of keywords) {
+                    if (lowerItem.includes(keyword)) {
+                        return section;
+                    }
+                }
+            }
+
+            return 'Other';
+        }
+
+        function GroceryApp() {
+            const [apiKey, setApiKey] = useState('');
+            const [showApiKeyInput, setShowApiKeyInput] = useState(true);
+            const [image, setImage] = useState(null);
+            const [imageData, setImageData] = useState(null);
+            const [status, setStatus] = useState('');
+            const [items, setItems] = useState([]);
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [editingItem, setEditingItem] = useState(null);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('anthropic_api_key');
+                if (saved) {
+                    setApiKey(saved);
+                    setShowApiKeyInput(false);
+                }
+            }, []);
+
+            const saveApiKey = () => {
+                localStorage.setItem('anthropic_api_key', apiKey);
+                setShowApiKeyInput(false);
+            };
+
+            const clearApiKey = () => {
+                localStorage.removeItem('anthropic_api_key');
+                setApiKey('');
+                setShowApiKeyInput(true);
+            };
+
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    setImage(event.target.result);
+
+                    // Extract base64 data
+                    const base64Data = event.target.result.split(',')[1];
+                    const mediaType = file.type;
+
+                    setImageData({ base64: base64Data, mediaType });
+
+                    // Automatically process the image
+                    await processImageWithClaude(base64Data, mediaType);
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const processImageWithClaude = async (base64Data, mediaType) => {
+                if (!apiKey) {
+                    setStatus('Please enter your API key first');
+                    return;
+                }
+
+                setIsProcessing(true);
+                setStatus('Claude is reading your grocery list...');
+
+                try {
+                    const response = await fetch('/api/claude', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            api_key: apiKey,
+                            image_data: {
+                                base64: base64Data,
+                                mediaType: mediaType
+                            }
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error?.message || 'API request failed');
+                    }
+
+                    const data = await response.json();
+                    const extractedText = data.content[0].text;
+
+                    // Parse JSON from Claude's response
+                    let groceryItems;
+                    try {
+                        // Try to extract JSON array from response
+                        const jsonMatch = extractedText.match(/\[[\s\S]*\]/);
+                        if (jsonMatch) {
+                            groceryItems = JSON.parse(jsonMatch[0]);
+                        } else {
+                            groceryItems = JSON.parse(extractedText);
+                        }
+                    } catch (e) {
+                        // If JSON parsing fails, split by newlines as fallback
+                        groceryItems = extractedText
+                            .split('\n')
+                            .map(line => line.trim())
+                            .filter(line => line.length > 0 && !line.startsWith('[') && !line.startsWith(']'))
+                            .map(line => line.replace(/^["'\-*•]\s*/, '').replace(/["']$/, ''));
+                    }
+
+                    // Convert to app format
+                    const parsedItems = groceryItems
+                        .filter(item => item && item.length > 1)
+                        .map((itemName, index) => ({
+                            id: Date.now() + index,
+                            name: itemName,
+                            category: categorizeItem(itemName),
+                            checked: false
+                        }));
+
+                    setItems(parsedItems);
+                    setStatus(`Successfully extracted ${parsedItems.length} items!`);
+                    setTimeout(() => setStatus(''), 3000);
+                    setIsProcessing(false);
+                } catch (error) {
+                    console.error('Error:', error);
+                    setStatus(`Error: ${error.message}`);
+                    setIsProcessing(false);
+                }
+            };
+
+            const toggleItem = (id) => {
+                setItems(items.map(item =>
+                    item.id === id ? { ...item, checked: !item.checked } : item
+                ));
+            };
+
+            const deleteItem = (id) => {
+                setItems(items.filter(item => item.id !== id));
+            };
+
+            const updateItem = (id, newName) => {
+                setItems(items.map(item =>
+                    item.id === id ? { ...item, name: newName, category: categorizeItem(newName) } : item
+                ));
+                setEditingItem(null);
+            };
+
+            const addItem = () => {
+                const newItem = {
+                    id: Date.now(),
+                    name: 'New item',
+                    category: 'Other',
+                    checked: false
+                };
+                setItems([...items, newItem]);
+                setEditingItem(newItem.id);
+            };
+
+            // Group items by category
+            const groupedItems = items.reduce((acc, item) => {
+                if (!acc[item.category]) {
+                    acc[item.category] = [];
+                }
+                acc[item.category].push(item);
+                return acc;
+            }, {});
+
+            // Order sections as they appear in a typical Kroger
+            const sectionOrder = [
+                'Produce',
+                'Bakery',
+                'Meat & Seafood',
+                'Dairy & Eggs',
+                'Frozen Foods',
+                'Pantry & Canned Goods',
+                'International',
+                'Condiments & Sauces',
+                'Snacks',
+                'Beverages',
+                'Household & Cleaning',
+                'Other'
+            ];
+
+            const sortedSections = sectionOrder.filter(section => groupedItems[section]?.length > 0);
+
+            if (showApiKeyInput) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4 flex items-center justify-center">
+                        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+                            <h1 className="text-2xl font-bold text-green-700 mb-2">
+                                🛒 Smart Grocery List
+                            </h1>
+                            <p className="text-gray-600 mb-6">
+                                Powered by Claude AI
+                            </p>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Anthropic API Key
+                                </label>
+                                <input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder="sk-ant-..."
+                                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Get your API key from <a href="https://console.anthropic.com/" target="_blank" className="text-blue-600 hover:underline">console.anthropic.com</a>
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={saveApiKey}
+                                disabled={!apiKey}
+                                className="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            >
+                                Save & Continue
+                            </button>
+
+                            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                                <p className="text-sm text-gray-700">
+                                    <strong>How it works:</strong>
+                                </p>
+                                <ul className="text-sm text-gray-600 mt-2 space-y-1">
+                                    <li>• Upload a photo of your handwritten grocery list</li>
+                                    <li>• Claude AI reads and extracts items</li>
+                                    <li>• Items are auto-organized by Kroger store sections</li>
+                                    <li>• Check off items as you shop</li>
+                                </ul>
+                            </div>
+
+                            <p className="text-xs text-gray-400 mt-4">
+                                Your API key is stored locally in your browser and never sent anywhere except directly to Anthropic's API.
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h1 className="text-3xl font-bold text-green-700 mb-2">
+                                        🛒 Smart Grocery List Organizer
+                                    </h1>
+                                    <p className="text-gray-600">
+                                        Powered by Claude AI • Upload a photo of your handwritten list
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={clearApiKey}
+                                    className="text-sm text-gray-500 hover:text-gray-700 underline"
+                                >
+                                    Change API Key
+                                </button>
+                            </div>
+
+                            <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center bg-green-50">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    id="image-upload"
+                                    disabled={isProcessing}
+                                />
+                                <label
+                                    htmlFor="image-upload"
+                                    className={`cursor-pointer inline-block bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition ${
+                                        isProcessing ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                                >
+                                    📷 Upload Grocery List Photo
+                                </label>
+
+                                {isProcessing && (
+                                    <div className="mt-4">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+                                        <p className="text-green-700 mt-2">{status}</p>
+                                    </div>
+                                )}
+
+                                {status && !isProcessing && (
+                                    <p className="text-green-700 mt-2">{status}</p>
+                                )}
+                            </div>
+
+                            {image && !isProcessing && (
+                                <div className="mt-4">
+                                    <img src={image} alt="Uploaded list" className="max-h-64 mx-auto rounded border" />
+                                </div>
+                            )}
+                        </div>
+
+                        {items.length > 0 && (
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-2xl font-bold text-gray-800">
+                                        Your Shopping List
+                                    </h2>
+                                    <button
+                                        onClick={addItem}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+                                    >
+                                        + Add Item
+                                    </button>
+                                </div>
+                                <p className="text-sm text-gray-500 mb-6">
+                                    Items organized by store section. Click to edit, check off as you shop.
+                                </p>
+
+                                {sortedSections.map(section => (
+                                    <div key={section} className="mb-6">
+                                        <h3 className="text-lg font-semibold text-green-700 mb-3 flex items-center border-b-2 border-green-200 pb-2">
+                                            <span className="bg-green-100 px-3 py-1 rounded-full">
+                                                {section}
+                                            </span>
+                                        </h3>
+                                        <div className="space-y-2 pl-2">
+                                            {groupedItems[section].map(item => (
+                                                <div
+                                                    key={item.id}
+                                                    className={`flex items-center gap-3 p-3 rounded-lg transition ${
+                                                        item.checked ? 'bg-gray-100' : 'bg-white hover:bg-gray-50'
+                                                    } border`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={item.checked}
+                                                        onChange={() => toggleItem(item.id)}
+                                                        className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+                                                    />
+
+                                                    {editingItem === item.id ? (
+                                                        <input
+                                                            type="text"
+                                                            value={item.name}
+                                                            onChange={(e) => {
+                                                                setItems(items.map(i =>
+                                                                    i.id === item.id ? { ...i, name: e.target.value } : i
+                                                                ));
+                                                            }}
+                                                            onBlur={() => updateItem(item.id, item.name)}
+                                                            onKeyPress={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    updateItem(item.id, item.name);
+                                                                }
+                                                            }}
+                                                            autoFocus
+                                                            className="flex-1 border rounded px-2 py-1"
+                                                        />
+                                                    ) : (
+                                                        <span
+                                                            onClick={() => setEditingItem(item.id)}
+                                                            className={`flex-1 cursor-pointer ${
+                                                                item.checked ? 'line-through text-gray-400' : 'text-gray-800'
+                                                            }`}
+                                                        >
+                                                            {item.name}
+                                                        </span>
+                                                    )}
+
+                                                    <button
+                                                        onClick={() => deleteItem(item.id)}
+                                                        className="text-red-500 hover:text-red-700 text-sm px-2"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <div className="mt-6 pt-4 border-t">
+                                    <p className="text-sm text-gray-600">
+                                        <strong>{items.filter(i => i.checked).length}</strong> of <strong>{items.length}</strong> items checked
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {items.length === 0 && !isProcessing && (
+                            <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">
+                                <p className="text-lg">Upload a photo of your grocery list to get started!</p>
+                                <p className="text-sm mt-2">Claude AI will read your handwriting and organize items by where they're located in Kroger.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<GroceryApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
