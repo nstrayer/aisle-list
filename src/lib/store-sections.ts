@@ -200,6 +200,106 @@ export const SECTION_ORDER = [
   "Other",
 ];
 
+// Color mapping for each store section
+export const SECTION_COLORS: Record<string, { bg: string; text: string; border: string; darkBg: string; darkText: string; darkBorder: string }> = {
+  Produce: {
+    bg: "bg-emerald-100",
+    text: "text-emerald-700",
+    border: "border-emerald-400",
+    darkBg: "dark:bg-emerald-900/30",
+    darkText: "dark:text-emerald-400",
+    darkBorder: "dark:border-emerald-600",
+  },
+  Bakery: {
+    bg: "bg-amber-100",
+    text: "text-amber-700",
+    border: "border-amber-400",
+    darkBg: "dark:bg-amber-900/30",
+    darkText: "dark:text-amber-400",
+    darkBorder: "dark:border-amber-600",
+  },
+  "Meat & Seafood": {
+    bg: "bg-red-100",
+    text: "text-red-700",
+    border: "border-red-400",
+    darkBg: "dark:bg-red-900/30",
+    darkText: "dark:text-red-400",
+    darkBorder: "dark:border-red-600",
+  },
+  "Dairy & Eggs": {
+    bg: "bg-blue-100",
+    text: "text-blue-700",
+    border: "border-blue-400",
+    darkBg: "dark:bg-blue-900/30",
+    darkText: "dark:text-blue-400",
+    darkBorder: "dark:border-blue-600",
+  },
+  "Frozen Foods": {
+    bg: "bg-cyan-100",
+    text: "text-cyan-700",
+    border: "border-cyan-400",
+    darkBg: "dark:bg-cyan-900/30",
+    darkText: "dark:text-cyan-400",
+    darkBorder: "dark:border-cyan-600",
+  },
+  "Pantry & Canned Goods": {
+    bg: "bg-orange-100",
+    text: "text-orange-700",
+    border: "border-orange-400",
+    darkBg: "dark:bg-orange-900/30",
+    darkText: "dark:text-orange-400",
+    darkBorder: "dark:border-orange-600",
+  },
+  "Condiments & Sauces": {
+    bg: "bg-yellow-100",
+    text: "text-yellow-700",
+    border: "border-yellow-400",
+    darkBg: "dark:bg-yellow-900/30",
+    darkText: "dark:text-yellow-400",
+    darkBorder: "dark:border-yellow-600",
+  },
+  International: {
+    bg: "bg-purple-100",
+    text: "text-purple-700",
+    border: "border-purple-400",
+    darkBg: "dark:bg-purple-900/30",
+    darkText: "dark:text-purple-400",
+    darkBorder: "dark:border-purple-600",
+  },
+  Snacks: {
+    bg: "bg-pink-100",
+    text: "text-pink-700",
+    border: "border-pink-400",
+    darkBg: "dark:bg-pink-900/30",
+    darkText: "dark:text-pink-400",
+    darkBorder: "dark:border-pink-600",
+  },
+  Beverages: {
+    bg: "bg-teal-100",
+    text: "text-teal-700",
+    border: "border-teal-400",
+    darkBg: "dark:bg-teal-900/30",
+    darkText: "dark:text-teal-400",
+    darkBorder: "dark:border-teal-600",
+  },
+  "Household & Cleaning": {
+    bg: "bg-slate-100",
+    text: "text-slate-700",
+    border: "border-slate-400",
+    darkBg: "dark:bg-slate-900/30",
+    darkText: "dark:text-slate-400",
+    darkBorder: "dark:border-slate-600",
+  },
+  Other: {
+    bg: "bg-gray-100",
+    text: "text-gray-700",
+    border: "border-gray-400",
+    darkBg: "dark:bg-gray-900/30",
+    darkText: "dark:text-gray-400",
+    darkBorder: "dark:border-gray-600",
+  },
+};
+
 export function categorizeItem(itemName: string): string {
   const lowerItem = itemName.toLowerCase();
 

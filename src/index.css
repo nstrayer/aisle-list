@@ -33,3 +33,112 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Checkbox bounce animation */
+@keyframes checkbox-bounce {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.25);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.checkbox-bounce {
+  animation: checkbox-bounce 0.4s ease-out;
+}
+
+/* Progress ring animation */
+@keyframes progress-fill {
+  from {
+    stroke-dashoffset: 283;
+  }
+}
+
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.5s ease-out;
+}
+
+/* Item transition animations */
+.item-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.item-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+/* Active state scale feedback */
+.interactive-press {
+  transition: transform 0.1s ease-out;
+}
+
+.interactive-press:active {
+  transform: scale(0.97);
+}
+
+/* Dark mode enhanced gradient background */
+.dark .dark-gradient-bg {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 50%, #1e1b4b 100%);
+}
+
+/* Enhanced card depth for dark mode */
+.dark .card-depth {
+  background: rgba(31, 41, 55, 0.8);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+/* Celebration animation for 100% progress */
+@keyframes celebrate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10% {
+    transform: scale(1.1) rotate(-3deg);
+  }
+  20% {
+    transform: scale(1.1) rotate(3deg);
+  }
+  30% {
+    transform: scale(1.1) rotate(-3deg);
+  }
+  40% {
+    transform: scale(1.1) rotate(3deg);
+  }
+  50% {
+    transform: scale(1);
+  }
+}
+
+.celebrate {
+  animation: celebrate 0.8s ease-out;
+}
+
+/* Section border connector */
+.section-item-border {
+  position: relative;
+}
+
+.section-item-border::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+}
