@@ -107,6 +107,21 @@ export function GroceryList({
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(sessionName ?? "");
   const [animatingCheckbox, setAnimatingCheckbox] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [menuOpen]);
 
   const toggleItem = (id: string) => {
     const item = items.find((i) => i.id === id);
@@ -224,7 +239,8 @@ export function GroceryList({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Desktop buttons */}
+            <div className="hidden sm:flex items-center gap-2">
               <DarkModeToggle isDark={isDark} onToggle={onToggleDarkMode} />
               {onOpenHistory && (
                 <button
@@ -250,6 +266,76 @@ export function GroceryList({
               >
                 New List
               </button>
+            </div>
+
+            {/* Mobile hamburger menu */}
+            <div className="sm:hidden relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 interactive-press"
+                aria-label="Menu"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+                  <button
+                    onClick={() => {
+                      addItem();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-3 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3"
+                  >
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Item
+                  </button>
+                  <button
+                    onClick={() => {
+                      onNewList();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-3 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3"
+                  >
+                    <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    New List
+                  </button>
+                  {onOpenHistory && (
+                    <button
+                      onClick={() => {
+                        onOpenHistory();
+                        setMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3"
+                    >
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      History
+                    </button>
+                  )}
+                  <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <span className="text-gray-700 dark:text-gray-200">Dark Mode</span>
+                    <DarkModeToggle isDark={isDark} onToggle={onToggleDarkMode} />
+                  </div>
+                  {uploadedImage && (
+                    <>
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-gray-700 dark:text-gray-200">Original</span>
+                        <ImageThumbnail imageDataUrl={uploadedImage} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
