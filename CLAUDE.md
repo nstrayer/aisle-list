@@ -35,8 +35,7 @@ kroger-list/
       store-sections.ts   # STORE_SECTIONS mapping + categorizeItem()
       types.ts            # TypeScript interfaces
       schemas.ts          # Zod schemas for AI output
-  public/
-    favicon.ico
+  public/               # Static assets
 ```
 
 ## Running the App
@@ -66,11 +65,10 @@ npm run preview  # preview production build
 
 ## Key Code Locations
 
-- `src/lib/store-sections.ts` - STORE_SECTIONS mapping + categorizeItem()
-- `src/lib/schemas.ts` - Zod schema for Claude's structured output
-- `src/lib/types.ts` - TypeScript interfaces
-- `src/lib/anthropic-client.ts` - Anthropic API integration
 - `src/App.tsx` - Main state machine (api_key -> upload -> clarify -> list)
+- `src/lib/anthropic-client.ts` - Anthropic API integration
+- `src/lib/store-sections.ts` - STORE_SECTIONS mapping + categorizeItem()
+- `src/lib/types.ts` - TypeScript interfaces
 
 ## Adding Store Sections
 
