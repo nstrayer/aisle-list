@@ -49,7 +49,7 @@ interface ToolInput {
   sections: GrocerySection[];
 }
 
-async function callAnthropicDirect(
+export async function analyzeGroceryImage(
   imageBase64: string,
   mediaType: string,
   apiKey: string
@@ -97,56 +97,4 @@ async function callAnthropicDirect(
 
   const input = toolUse.input as ToolInput;
   return input.sections;
-}
-
-async function callAnthropicViaBackend(
-  imageBase64: string,
-  mediaType: string,
-  apiKey: string
-): Promise<GrocerySection[]> {
-  const response = await fetch("/api/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imageBase64, mediaType, apiKey }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Failed to analyze image");
-  }
-
-  return data.sections;
-}
-
-function isCorsError(error: unknown): boolean {
-  if (error instanceof TypeError && error.message === "Failed to fetch") {
-    return true;
-  }
-  if (
-    error instanceof Error &&
-    error.message.toLowerCase().includes("cors")
-  ) {
-    return true;
-  }
-  return false;
-}
-
-export async function analyzeGroceryImage(
-  imageBase64: string,
-  mediaType: string,
-  apiKey: string
-): Promise<GrocerySection[]> {
-  try {
-    // Try direct browser request first
-    return await callAnthropicDirect(imageBase64, mediaType, apiKey);
-  } catch (error) {
-    // If CORS error, fall back to backend proxy
-    if (isCorsError(error)) {
-      console.log("CORS blocked, falling back to backend proxy");
-      return await callAnthropicViaBackend(imageBase64, mediaType, apiKey);
-    }
-    // Re-throw other errors
-    throw error;
-  }
 }

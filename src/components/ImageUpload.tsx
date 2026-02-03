@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useState } from "react";
 
 interface ImageUploadProps {
@@ -141,7 +139,7 @@ export function ImageUpload({
             </p>
             <p className="text-sm mt-2">
               Claude AI will read your handwriting and organize items by where
-              they&apos;re located in Kroger.
+              they're located in Kroger.
             </p>
           </div>
         )}

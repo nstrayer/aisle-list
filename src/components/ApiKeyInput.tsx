@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 
 interface ApiKeyInputProps {
@@ -72,7 +70,7 @@ export function ApiKeyInput({ onSave }: ApiKeyInputProps) {
 
         <p className="text-xs text-gray-400 mt-4">
           Your API key is stored locally in your browser and never sent anywhere
-          except directly to Anthropic&apos;s API.
+          except directly to Anthropic's API.
         </p>
       </div>
     </div>

@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import type { GrocerySection } from "@/lib/types";
 import { ImageThumbnail } from "./ImageThumbnail";

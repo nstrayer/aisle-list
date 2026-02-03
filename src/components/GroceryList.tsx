@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import type { GroceryItem } from "@/lib/types";
 import { SECTION_ORDER, categorizeItem } from "@/lib/store-sections";

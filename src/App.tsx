@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { ApiKeyInput } from "@/components/ApiKeyInput";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -11,7 +9,7 @@ import { analyzeGroceryImage } from "@/lib/anthropic-client";
 
 type AppState = "api_key" | "upload" | "clarify" | "list";
 
-export default function Home() {
+export default function App() {
   const [appState, setAppState] = useState<AppState>("api_key");
   const [apiKey, setApiKey] = useState<string>("");
   const [sections, setSections] = useState<GrocerySection[]>([]);
