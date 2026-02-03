@@ -11,7 +11,7 @@ export function ImageThumbnail({ imageDataUrl }: ImageThumbnailProps) {
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="w-14 h-14 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-green-500 transition flex-shrink-0"
+        className="w-14 h-14 rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-600 hover:border-green-500 dark:hover:border-green-400 transition flex-shrink-0"
         title="View original image"
       >
         <img
@@ -29,7 +29,7 @@ export function ImageThumbnail({ imageDataUrl }: ImageThumbnailProps) {
           <div className="relative max-w-4xl max-h-[90vh] w-full">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300 text-2xl font-bold"
+              className="absolute -top-12 right-0 min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:text-gray-300 text-2xl font-bold"
               aria-label="Close"
             >
               x

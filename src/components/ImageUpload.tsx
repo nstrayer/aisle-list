@@ -1,15 +1,21 @@
 import { useCallback, useState } from "react";
+import { DarkModeToggle } from "./DarkModeToggle";
+import { AnimatedTitle } from "./AnimatedTitle";
 
 interface ImageUploadProps {
   onUpload: (imageBase64: string, mediaType: string) => void;
   isLoading: boolean;
   onChangeApiKey: () => void;
+  isDark: boolean;
+  onToggleDarkMode: () => void;
 }
 
 export function ImageUpload({
   onUpload,
   isLoading,
   onChangeApiKey,
+  isDark,
+  onToggleDarkMode,
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -61,31 +67,34 @@ export function ImageUpload({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-950 p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-green-700 mb-2">
-                Smart Grocery List Organizer
+              <h1 className="text-3xl font-bold text-green-700 dark:text-green-400 mb-2">
+                <AnimatedTitle />
               </h1>
-              <p className="text-gray-600">
-                Powered by Claude AI - Upload a photo of your handwritten list
+              <p className="text-gray-600 dark:text-gray-300">
+                Upload a photo of your handwritten list
               </p>
             </div>
-            <button
-              onClick={onChangeApiKey}
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
-            >
-              Change API Key
-            </button>
+            <div className="flex items-center gap-2">
+              <DarkModeToggle isDark={isDark} onToggle={onToggleDarkMode} />
+              <button
+                onClick={onChangeApiKey}
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
+              >
+                Change API Key
+              </button>
+            </div>
           </div>
 
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition ${
               isDragging
-                ? "border-green-500 bg-green-100"
-                : "border-green-300 bg-green-50"
+                ? "border-green-500 bg-green-100 dark:bg-green-900/30"
+                : "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20"
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -101,20 +110,20 @@ export function ImageUpload({
             />
             <label
               htmlFor="image-upload"
-              className={`cursor-pointer inline-block bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition ${
+              className={`cursor-pointer inline-block min-h-[44px] bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition ${
                 isLoading ? "opacity-50 cursor-not-allowed" : ""
               }`}
             >
               Upload Grocery List Photo
             </label>
 
-            <p className="text-gray-500 mt-3">or drag and drop an image here</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-3">or drag and drop an image here</p>
 
             {isLoading && (
               <div className="mt-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-                <p className="text-green-700 mt-2">
-                  Claude is reading your grocery list...
+                <p className="text-green-700 dark:text-green-400 mt-2">
+                  Reading your grocery list...
                 </p>
               </div>
             )}
@@ -125,20 +134,19 @@ export function ImageUpload({
               <img
                 src={preview}
                 alt="Uploaded list"
-                className="max-h-64 mx-auto rounded border"
+                className="max-h-64 mx-auto rounded border border-gray-200 dark:border-gray-700"
               />
             </div>
           )}
         </div>
 
         {!preview && !isLoading && (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500 mt-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center text-gray-500 dark:text-gray-400 mt-6">
             <p className="text-lg">
               Upload a photo of your grocery list to get started!
             </p>
             <p className="text-sm mt-2">
-              Claude AI will read your handwriting and organize items by where
-              they're located in Kroger.
+              AI reads your handwriting and organizes items by store section.
             </p>
           </div>
         )}

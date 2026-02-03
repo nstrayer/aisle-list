@@ -25,16 +25,24 @@ kroger-list/
     App.tsx            # Main app (upload, clarify, list screens)
     index.css          # Tailwind imports + theme
     components/
+      AnimatedTitle.tsx  # Rough-notation animated title
       ApiKeyInput.tsx    # API key entry form
-      ImageUpload.tsx    # Drag-drop or click to upload
       ClarifyScreen.tsx  # Section selection UI
+      DarkModeToggle.tsx # Theme toggle button
       GroceryList.tsx    # Final checklist by Kroger section
       ImageThumbnail.tsx # Clickable thumbnail with modal
+      ImageUpload.tsx    # Drag-drop or click to upload
+      OfflineBanner.tsx  # PWA offline indicator
+      SwipeableItem.tsx  # Swipe-to-delete list item
+    hooks/
+      useDarkMode.ts     # Dark mode state + localStorage sync
+      useOnlineStatus.ts # Network connectivity hook
     lib/
       anthropic-client.ts # Direct browser calls to Anthropic API
+      schemas.ts          # Zod schemas for AI output
+      storage.ts          # localStorage utilities
       store-sections.ts   # STORE_SECTIONS mapping + categorizeItem()
       types.ts            # TypeScript interfaces
-      schemas.ts          # Zod schemas for AI output
   public/               # Static assets
 ```
 
@@ -51,6 +59,7 @@ Build for production:
 ```bash
 npm run build    # outputs to dist/
 npm run preview  # preview production build
+npm run lint     # run ESLint
 ```
 
 ## Architecture
@@ -73,3 +82,10 @@ npm run preview  # preview production build
 ## Adding Store Sections
 
 Edit the `STORE_SECTIONS` object in `src/lib/store-sections.ts` to add new section keywords.
+
+## Gotchas
+
+- **Tailwind v4**: Uses CSS-based config in `src/index.css`, not `tailwind.config.js`
+- **Browser API calls**: Uses `dangerouslyAllowBrowser: true` intentionally - API key is user-provided and stored in localStorage
+- **PWA**: Configured via `vite-plugin-pwa` in `vite.config.ts` - service worker auto-generated on build
+- **Dark mode**: Uses Tailwind's `dark:` variant with class strategy; state persisted to localStorage
