@@ -12,10 +12,25 @@ interface GroceryListProps {
   uploadedImage?: string | null;
   isDark: boolean;
   onToggleDarkMode: () => void;
+  sessionName?: string;
+  onOpenHistory?: () => void;
+  onRenameSession?: (name: string) => void;
 }
 
-export function GroceryList({ items, onUpdateItems, onNewList, uploadedImage, isDark, onToggleDarkMode }: GroceryListProps) {
+export function GroceryList({
+  items,
+  onUpdateItems,
+  onNewList,
+  uploadedImage,
+  isDark,
+  onToggleDarkMode,
+  sessionName,
+  onOpenHistory,
+  onRenameSession,
+}: GroceryListProps) {
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(sessionName ?? "");
 
   const toggleItem = (id: string) => {
     onUpdateItems(
@@ -66,14 +81,61 @@ export function GroceryList({ items, onUpdateItems, onNewList, uploadedImage, is
 
   const checkedCount = items.filter((i) => i.checked).length;
 
+  const handleSaveName = () => {
+    if (nameValue.trim() && onRenameSession) {
+      onRenameSession(nameValue.trim());
+    }
+    setEditingName(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-950 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Your Shopping List</h2>
+            <div className="flex items-center gap-2">
+              {editingName ? (
+                <input
+                  type="text"
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  onBlur={handleSaveName}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") {
+                      setNameValue(sessionName ?? "");
+                      setEditingName(false);
+                    }
+                  }}
+                  autoFocus
+                  className="text-2xl font-bold border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                />
+              ) : (
+                <h2
+                  className="text-2xl font-bold text-gray-800 dark:text-gray-100 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300"
+                  onClick={() => {
+                    setNameValue(sessionName ?? "Your Shopping List");
+                    setEditingName(true);
+                  }}
+                  title="Click to rename"
+                >
+                  {sessionName || "Your Shopping List"}
+                </h2>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <DarkModeToggle isDark={isDark} onToggle={onToggleDarkMode} />
+              {onOpenHistory && (
+                <button
+                  onClick={onOpenHistory}
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  title="View history"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+              )}
               {uploadedImage && <ImageThumbnail imageDataUrl={uploadedImage} />}
               <button
                 onClick={addItem}

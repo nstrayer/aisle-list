@@ -14,3 +14,21 @@ export interface GroceryItem {
   category: string;
   checked: boolean;
 }
+
+export interface ListSession {
+  id: string;
+  name: string;
+  items: GroceryItem[];
+  createdAt: number;
+  updatedAt: number;
+  hasImage: boolean;
+}
+
+export interface SessionIndexEntry {
+  id: string;
+  name: string;
+  createdAt: number;
+  itemCount: number;
+  checkedCount: number;
+  hasImage: boolean;
+}

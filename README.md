@@ -16,6 +16,7 @@ A smart grocery list app that uses AI to read your handwritten lists and organiz
 - **Handwriting recognition** - Works with messy handwriting, multiple columns, and mixed formats
 - **Smart categorization** - Distinguishes between grocery items, meal plans, and notes
 - **Store-optimized** - Groups items by typical grocery store layout to minimize backtracking
+- **List history** - Auto-saves lists so you can revisit previous shopping trips
 - **Works offline** - Install as a PWA on your phone for quick access
 - **Privacy-first** - Your API key and images stay on your device
 

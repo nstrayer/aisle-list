@@ -8,6 +8,8 @@ interface ImageUploadProps {
   onChangeApiKey: () => void;
   isDark: boolean;
   onToggleDarkMode: () => void;
+  onOpenHistory?: () => void;
+  hasHistory?: boolean;
 }
 
 export function ImageUpload({
@@ -16,6 +18,8 @@ export function ImageUpload({
   onChangeApiKey,
   isDark,
   onToggleDarkMode,
+  onOpenHistory,
+  hasHistory,
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,6 +85,17 @@ export function ImageUpload({
             </div>
             <div className="flex items-center gap-2">
               <DarkModeToggle isDark={isDark} onToggle={onToggleDarkMode} />
+              {hasHistory && onOpenHistory && (
+                <button
+                  onClick={onOpenHistory}
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  title="View history"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+              )}
               <button
                 onClick={onChangeApiKey}
                 className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
