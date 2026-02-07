@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import type { GroceryItem } from "@/lib/types";
 import { SECTION_ORDER, SECTION_COLORS, categorizeItem } from "@/lib/store-sections";
 import { ImageThumbnail } from "./ImageThumbnail";
@@ -110,6 +110,12 @@ export function GroceryList({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Settling state for delayed reorder animation
+  const [settlingItems, setSettlingItems] = useState<Set<string>>(new Set());
+  const settleTimers = useRef<Map<string, number>>(new Map());
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const prevPositions = useRef<Map<string, number>>(new Map());
+
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -123,18 +129,47 @@ export function GroceryList({
     }
   }, [menuOpen]);
 
-  const toggleItem = (id: string) => {
+  const toggleItem = useCallback((id: string) => {
     const item = items.find((i) => i.id === id);
-    if (item && !item.checked) {
+    if (!item) return;
+
+    if (!item.checked) {
+      // Checking: start checkbox animation and add to settling set
       setAnimatingCheckbox(id);
       setTimeout(() => setAnimatingCheckbox(null), 400);
+
+      setSettlingItems((prev) => new Set(prev).add(id));
+      const timer = window.setTimeout(() => {
+        setSettlingItems((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        settleTimers.current.delete(id);
+      }, 800);
+      settleTimers.current.set(id, timer);
+    } else {
+      // Unchecking: if still settling, cancel the timer and remove from set
+      if (settlingItems.has(id)) {
+        const timer = settleTimers.current.get(id);
+        if (timer != null) {
+          clearTimeout(timer);
+          settleTimers.current.delete(id);
+        }
+        setSettlingItems((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
     }
+
     onUpdateItems(
-      items.map((item) =>
-        item.id === id ? { ...item, checked: !item.checked } : item
+      items.map((i) =>
+        i.id === id ? { ...i, checked: !i.checked } : i
       )
     );
-  };
+  }, [items, settlingItems, onUpdateItems]);
 
   const deleteItem = (id: string) => {
     onUpdateItems(items.filter((item) => item.id !== id));
@@ -171,8 +206,22 @@ export function GroceryList({
     return acc;
   }, {});
 
+  // Sort each section: unchecked first, checked last.
+  // Items in settlingItems are treated as unchecked (stay in place during delay).
+  const sortedGroupedItems: Record<string, GroceryItem[]> = {};
+  for (const section of Object.keys(groupedItems)) {
+    const sectionItems = groupedItems[section];
+    const unchecked = sectionItems.filter(
+      (item) => !item.checked || settlingItems.has(item.id)
+    );
+    const checked = sectionItems.filter(
+      (item) => item.checked && !settlingItems.has(item.id)
+    );
+    sortedGroupedItems[section] = [...unchecked, ...checked];
+  }
+
   const sortedSections = SECTION_ORDER.filter(
-    (section) => groupedItems[section]?.length > 0
+    (section) => sortedGroupedItems[section]?.length > 0
   );
 
   const checkedCount = items.filter((i) => i.checked).length;
@@ -188,6 +237,45 @@ export function GroceryList({
   const getSectionColors = (section: string) => {
     return SECTION_COLORS[section] || SECTION_COLORS["Other"];
   };
+
+  // FLIP animation: compare positions before and after render
+  useLayoutEffect(() => {
+    const currentPositions = new Map<string, number>();
+    itemRefs.current.forEach((el, id) => {
+      currentPositions.set(id, el.getBoundingClientRect().top);
+    });
+
+    const prev = prevPositions.current;
+    if (prev.size > 0) {
+      currentPositions.forEach((newTop, id) => {
+        const oldTop = prev.get(id);
+        if (oldTop != null && oldTop !== newTop) {
+          const delta = oldTop - newTop;
+          const el = itemRefs.current.get(id);
+          if (el) {
+            // Place element at its old position
+            el.style.transform = `translateY(${delta}px)`;
+            el.style.transition = "none";
+
+            requestAnimationFrame(() => {
+              // Animate to new position
+              el.classList.add("item-flip");
+              el.style.transform = "";
+              el.style.transition = "";
+
+              const onEnd = () => {
+                el.classList.remove("item-flip");
+                el.removeEventListener("transitionend", onEnd);
+              };
+              el.addEventListener("transitionend", onEnd);
+            });
+          }
+        }
+      });
+    }
+
+    prevPositions.current = currentPositions;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-950 dark:dark-gradient-bg p-4">
@@ -349,67 +437,75 @@ export function GroceryList({
                   </span>
                 </h3>
                 <div className="space-y-2">
-                  {groupedItems[section].map((item) => (
-                    <SwipeableItem key={item.id} onDelete={() => deleteItem(item.id)}>
-                      <div
-                        className={`flex items-center gap-1 p-2 rounded-lg transition border-l-4 ${colors.border} ${colors.darkBorder} ${
-                          item.checked ? "bg-gray-100 dark:bg-gray-700/50" : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        } border border-gray-200 dark:border-gray-700`}
-                      >
+                  {sortedGroupedItems[section].map((item) => (
+                    <div
+                      key={item.id}
+                      ref={(el) => {
+                        if (el) itemRefs.current.set(item.id, el);
+                        else itemRefs.current.delete(item.id);
+                      }}
+                    >
+                      <SwipeableItem onDelete={() => deleteItem(item.id)}>
                         <div
-                          className={`min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer interactive-press ${
-                            animatingCheckbox === item.id ? "checkbox-bounce" : ""
-                          }`}
-                          onClick={() => toggleItem(item.id)}
+                          className={`flex items-center gap-1 p-2 rounded-lg transition border-l-4 ${colors.border} ${colors.darkBorder} ${
+                            item.checked ? "bg-gray-100 dark:bg-gray-700/50" : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          } border border-gray-200 dark:border-gray-700`}
                         >
-                          <input
-                            type="checkbox"
-                            checked={item.checked}
-                            onChange={() => toggleItem(item.id)}
-                            className={`w-5 h-5 rounded focus:ring-2 pointer-events-none ${colors.text}`}
-                          />
-                        </div>
-
-                        {editingItem === item.id ? (
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) =>
-                              onUpdateItems(
-                                items.map((i) =>
-                                  i.id === item.id ? { ...i, name: e.target.value } : i
-                                )
-                              )
-                            }
-                            onBlur={() => updateItemName(item.id, item.name)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                updateItemName(item.id, item.name);
-                              }
-                            }}
-                            autoFocus
-                            className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-                          />
-                        ) : (
-                          <span
-                            onClick={() => setEditingItem(item.id)}
-                            className={`flex-1 cursor-pointer py-2 ${
-                              item.checked ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-800 dark:text-gray-100"
+                          <div
+                            className={`min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer interactive-press ${
+                              animatingCheckbox === item.id ? "checkbox-bounce" : ""
                             }`}
+                            onClick={() => toggleItem(item.id)}
                           >
-                            {item.name}
-                          </span>
-                        )}
+                            <input
+                              type="checkbox"
+                              checked={item.checked}
+                              onChange={() => toggleItem(item.id)}
+                              className={`w-5 h-5 rounded focus:ring-2 pointer-events-none ${colors.text}`}
+                            />
+                          </div>
 
-                        {/* Desktop delete button - hidden on touch devices */}
-                        <button
-                          onClick={() => deleteItem(item.id)}
-                          className="hidden sm:flex min-w-[44px] min-h-[44px] items-center justify-center text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 interactive-press"
-                        >
-                          x
-                        </button>
-                      </div>
-                    </SwipeableItem>
+                          {editingItem === item.id ? (
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) =>
+                                onUpdateItems(
+                                  items.map((i) =>
+                                    i.id === item.id ? { ...i, name: e.target.value } : i
+                                  )
+                                )
+                              }
+                              onBlur={() => updateItemName(item.id, item.name)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  updateItemName(item.id, item.name);
+                                }
+                              }}
+                              autoFocus
+                              className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                            />
+                          ) : (
+                            <span
+                              onClick={() => setEditingItem(item.id)}
+                              className={`flex-1 cursor-pointer py-2 ${
+                                item.checked ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-800 dark:text-gray-100"
+                              }`}
+                            >
+                              {item.name}
+                            </span>
+                          )}
+
+                          {/* Desktop delete button - hidden on touch devices */}
+                          <button
+                            onClick={() => deleteItem(item.id)}
+                            className="hidden sm:flex min-w-[44px] min-h-[44px] items-center justify-center text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 interactive-press"
+                          >
+                            x
+                          </button>
+                        </div>
+                      </SwipeableItem>
+                    </div>
                   ))}
                 </div>
               </div>

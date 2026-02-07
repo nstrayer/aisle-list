@@ -128,6 +128,11 @@ body {
   animation: celebrate 0.8s ease-out;
 }
 
+/* FLIP animation for checked items reordering */
+.item-flip {
+  transition: transform 0.3s ease-out;
+}
+
 /* Section border connector */
 .section-item-border {
   position: relative;
