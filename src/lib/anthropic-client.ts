@@ -9,7 +9,8 @@ const ANALYZE_PROMPT = `Analyze this handwritten list. Identify distinct section
 - Notes or other text - type "notes"
 
 Group items by section. For unlabeled grocery items, use "Grocery list" as the section name with type "grocery".
-Each item should be a clean item name (remove bullets, dashes, etc.).`;
+Each item should be a clean item name (remove bullets, dashes, etc.).
+Correct obvious spelling mistakes in item names (e.g., "bannana" -> "banana", "brocoli" -> "broccoli").`;
 
 const TOOL_DEFINITION: Anthropic.Tool = {
   name: "grocery_sections",
