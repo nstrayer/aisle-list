@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { DarkModeToggle } from "./DarkModeToggle";
 import { AnimatedTitle } from "./AnimatedTitle";
+import { preprocessImageForApi } from "@/lib/image-processing";
 import type { SessionIndexEntry } from "@/lib/types";
 
 interface ImageUploadProps {
@@ -30,21 +31,27 @@ export function ImageUpload({
   const [isDragging, setIsDragging] = useState(false);
 
   const processFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       if (!file.type.startsWith("image/")) {
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setPreview(result);
-
-        // Extract base64 data (remove data URL prefix)
-        const base64Data = result.split(",")[1];
-        onUpload(base64Data, file.type);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const { base64, mediaType } = await preprocessImageForApi(file);
+        const dataUrl = `data:${mediaType};base64,${base64}`;
+        setPreview(dataUrl);
+        onUpload(base64, mediaType);
+      } catch {
+        // Fallback to raw FileReader if preprocessing fails
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          setPreview(result);
+          const base64Data = result.split(",")[1];
+          onUpload(base64Data, file.type);
+        };
+        reader.readAsDataURL(file);
+      }
     },
     [onUpload]
   );
