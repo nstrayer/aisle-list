@@ -343,12 +343,6 @@ export function GroceryList({
               )}
               {uploadedImage && <ImageThumbnail imageDataUrl={uploadedImage} />}
               <button
-                onClick={addItem}
-                className="min-h-[44px] bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm interactive-press"
-              >
-                + Add Item
-              </button>
-              <button
                 onClick={onNewList}
                 className="min-h-[44px] bg-gray-600 dark:bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-700 dark:hover:bg-gray-600 text-sm interactive-press"
               >
@@ -370,18 +364,6 @@ export function GroceryList({
 
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
-                  <button
-                    onClick={() => {
-                      addItem();
-                      setMenuOpen(false);
-                    }}
-                    className="w-full px-4 py-3 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-3"
-                  >
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add Item
-                  </button>
                   <button
                     onClick={() => {
                       onNewList();
@@ -511,6 +493,17 @@ export function GroceryList({
               </div>
             );
           })}
+
+          {/* Add Item button at bottom of list */}
+          <button
+            onClick={addItem}
+            className="w-full min-h-[44px] flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors interactive-press"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add item
+          </button>
         </div>
       </div>
     </div>
