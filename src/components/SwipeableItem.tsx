@@ -11,6 +11,7 @@ const DELETE_BUTTON_WIDTH = 80;
 export function SwipeableItem({ children, onDelete }: SwipeableItemProps) {
   const [translateX, setTranslateX] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [isDraggingState, setIsDraggingState] = useState(false);
   const touchStartX = useRef(0);
   const touchCurrentX = useRef(0);
   const isDragging = useRef(false);
@@ -19,6 +20,7 @@ export function SwipeableItem({ children, onDelete }: SwipeableItemProps) {
     touchStartX.current = e.touches[0].clientX;
     touchCurrentX.current = e.touches[0].clientX;
     isDragging.current = true;
+    setIsDraggingState(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -44,6 +46,7 @@ export function SwipeableItem({ children, onDelete }: SwipeableItemProps) {
   const handleTouchEnd = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
+    setIsDraggingState(false);
 
     // Decide if we should snap open or closed
     if (translateX < -SWIPE_THRESHOLD / 2) {
@@ -84,7 +87,7 @@ export function SwipeableItem({ children, onDelete }: SwipeableItemProps) {
         className="relative bg-white dark:bg-gray-800 transition-transform duration-150 ease-out"
         style={{
           transform: `translateX(${translateX}px)`,
-          transition: isDragging.current ? "none" : "transform 150ms ease-out",
+          transition: isDraggingState ? "none" : "transform 150ms ease-out",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

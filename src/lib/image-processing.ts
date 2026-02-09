@@ -95,7 +95,7 @@ export async function preprocessImageForApi(
   let { width, height } = calculateDimensions(naturalWidth, naturalHeight);
 
   // Try progressively lower quality levels
-  let quality = IMAGE_PROCESSING.INITIAL_QUALITY;
+  let quality: number = IMAGE_PROCESSING.INITIAL_QUALITY;
   let base64 = await resizeImageOnCanvas(bitmap, width, height, quality);
 
   while (

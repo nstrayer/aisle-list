@@ -31,16 +31,21 @@ function ProgressRing({
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (progress / 100) * circumference;
   const [animate, setAnimate] = useState(false);
-  const prevProgress = useRef(progress);
+  const [prevProg, setPrevProg] = useState(progress);
 
+  // Detect progress change during render (React-approved pattern)
+  if (progress !== prevProg) {
+    setPrevProg(progress);
+    setAnimate(true);
+  }
+
+  // Turn off animation after delay
   useEffect(() => {
-    if (progress !== prevProgress.current) {
-      setAnimate(true);
+    if (animate) {
       const timer = setTimeout(() => setAnimate(false), 400);
-      prevProgress.current = progress;
       return () => clearTimeout(timer);
     }
-  }, [progress]);
+  }, [animate]);
 
   const isComplete = progress === 100;
 
@@ -497,7 +502,7 @@ export function GroceryList({
           {/* Add Item button at bottom of list */}
           <button
             onClick={addItem}
-            className="w-full min-h-[44px] flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors interactive-press"
+            className="w-full min-h-11 flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors interactive-press"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
