@@ -119,6 +119,10 @@ const SANITY_CHECK_TOOL: Anthropic.Tool = {
         items: {
           type: "object",
           properties: {
+            id: {
+              type: "string",
+              description: "The item id (must match the input exactly)",
+            },
             name: {
               type: "string",
               description: "The grocery item name (must match the input exactly)",
@@ -129,7 +133,7 @@ const SANITY_CHECK_TOOL: Anthropic.Tool = {
               description: "The correct store section for this item",
             },
           },
-          required: ["name", "category"],
+          required: ["id", "name", "category"],
         },
       },
     },
@@ -138,20 +142,20 @@ const SANITY_CHECK_TOOL: Anthropic.Tool = {
 };
 
 interface SanityCheckInput {
-  items: Array<{ name: string; category: string }>;
+  items: Array<{ id: string; name: string; category: string }>;
 }
 
 export async function sanityCheckCategories(
-  items: Array<{ name: string; category: string }>,
+  items: Array<{ id: string; name: string; category: string }>,
   apiKey: string
-): Promise<Array<{ name: string; category: string }>> {
+): Promise<Array<{ id: string; name: string; category: string }>> {
   const client = new Anthropic({
     apiKey,
     dangerouslyAllowBrowser: true,
   });
 
   const itemList = items
-    .map((item) => `- "${item.name}" -> ${item.category}`)
+    .map((item) => `- [${item.id}] "${item.name}" -> ${item.category}`)
     .join("\n");
 
   const response = await client.messages.create({

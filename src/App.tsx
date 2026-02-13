@@ -148,6 +148,7 @@ export default function App() {
     setPendingSuggestions(null);
     try {
       const itemPairs = allItems.map((item) => ({
+        id: item.id,
         name: item.name,
         category: item.category,
       }));
@@ -156,15 +157,15 @@ export default function App() {
       // Ignore stale results if the user switched sessions
       if (sanityCheckSessionRef.current !== checkSessionId) return;
 
-      // Build a lookup from corrected results
+      // Build a lookup from corrected results, keyed by id
       const correctedMap = new Map(
-        corrected.map((c) => [c.name, c.category])
+        corrected.map((c) => [c.id, c.category])
       );
 
       // Diff against keyword categories, keyed by item id
       const diffs: CategorySuggestion[] = [];
       for (const item of allItems) {
-        const newCategory = correctedMap.get(item.name);
+        const newCategory = correctedMap.get(item.id);
         if (newCategory && newCategory !== item.category) {
           diffs.push({
             id: item.id,
