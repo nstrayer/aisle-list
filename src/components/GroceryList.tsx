@@ -8,7 +8,7 @@ import { SwipeableItem } from "./SwipeableItem";
 
 interface GroceryListProps {
   items: GroceryItem[];
-  onUpdateItems: (items: GroceryItem[]) => void;
+  onUpdateItems: (update: GroceryItem[] | ((prev: GroceryItem[]) => GroceryItem[])) => void;
   onNewList: () => void;
   uploadedImage?: string | null;
   isDark: boolean;
@@ -210,15 +210,15 @@ export function GroceryList({
     const RESERVED_KEYS = ["__proto__", "constructor", "prototype"];
     if (RESERVED_KEYS.includes(newCategory)) return;
 
-    onUpdateItems(
-      items.map((item) =>
+    onUpdateItems((prev) =>
+      prev.map((item) =>
         item.id === itemId ? { ...item, category: newCategory } : item
       )
     );
     setRecategorizingItem(null);
     setPickerPosition(null);
     setCustomSection("");
-  }, [items, onUpdateItems]);
+  }, [onUpdateItems]);
 
   const toggleItem = useCallback((id: string) => {
     const item = items.find((i) => i.id === id);
@@ -255,20 +255,20 @@ export function GroceryList({
       }
     }
 
-    onUpdateItems(
-      items.map((i) =>
+    onUpdateItems((prev) =>
+      prev.map((i) =>
         i.id === id ? { ...i, checked: !i.checked } : i
       )
     );
   }, [items, settlingItems, onUpdateItems]);
 
   const deleteItem = (id: string) => {
-    onUpdateItems(items.filter((item) => item.id !== id));
+    onUpdateItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const updateItemName = (id: string, newName: string) => {
-    onUpdateItems(
-      items.map((item) =>
+    onUpdateItems((prev) =>
+      prev.map((item) =>
         item.id === id
           ? { ...item, name: newName, category: categorizeItem(newName) }
           : item
@@ -284,7 +284,7 @@ export function GroceryList({
       category: "Other",
       checked: false,
     };
-    onUpdateItems([...items, newItem]);
+    onUpdateItems((prev) => [...prev, newItem]);
     setEditingItem(newItem.id);
     setEditingValue("New item");
   };
