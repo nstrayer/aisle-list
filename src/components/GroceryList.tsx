@@ -580,8 +580,8 @@ export function GroceryList({
             </div>
           )}
 
-          {/* Re-categorize button when items changed since last check */}
-          {itemsChangedSinceCheck && !isSanityChecking && onRecategorize && (
+          {/* Re-categorize button when items changed since last check or previous check failed */}
+          {(itemsChangedSinceCheck || sanityCheckError) && !isSanityChecking && onRecategorize && (
             <button
               onClick={onRecategorize}
               className="mb-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors interactive-press"
