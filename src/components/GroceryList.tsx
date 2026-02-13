@@ -270,14 +270,14 @@ export function GroceryList({
     setEditingItem(newItem.id);
   };
 
-  // Group items by category
+  // Group items by category (use null-prototype object to avoid __proto__ collisions)
   const groupedItems = items.reduce<Record<string, GroceryItem[]>>((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
     }
     acc[item.category].push(item);
     return acc;
-  }, {});
+  }, Object.create(null) as Record<string, GroceryItem[]>);
 
   // Sort each section: unchecked first, checked last.
   // Items in settlingItems are treated as unchecked (stay in place during delay).

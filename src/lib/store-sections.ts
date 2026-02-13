@@ -77,6 +77,7 @@ export const STORE_SECTIONS: Record<string, string[]> = {
   Bakery: [
     "bread",
     "bagel",
+    "roll",
     "rolls",
     "bun",
     "croissant",
@@ -120,6 +121,10 @@ export const STORE_SECTIONS: Record<string, string[]> = {
     "salad dressing",
     "bbq sauce",
     "salsa",
+    "canola oil",
+    "sesame oil",
+    "avocado oil",
+    "coconut oil",
     "honey",
     "jam",
     "jelly",

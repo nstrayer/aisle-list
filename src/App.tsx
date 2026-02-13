@@ -6,7 +6,7 @@ import { GroceryList } from "@/components/GroceryList";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import type { GrocerySection, GroceryItem, SessionIndexEntry, CategorySuggestion } from "@/lib/types";
-import { categorizeItem } from "@/lib/store-sections";
+import { categorizeItem, SECTION_ORDER } from "@/lib/store-sections";
 import { analyzeGroceryImage, sanityCheckCategories } from "@/lib/anthropic-client";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -40,6 +40,13 @@ export default function App() {
   const [sessionsIndex, setSessionsIndex] = useState<SessionIndexEntry[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [sessionName, setSessionName] = useState<string>("");
+
+  // Canonicalize AI-returned category names to match standard sections (case-insensitive)
+  const sectionLookup = new Map(SECTION_ORDER.map((s) => [s.toLowerCase(), s]));
+  const canonicalizeCategory = (category: string): string => {
+    const trimmed = category.trim();
+    return sectionLookup.get(trimmed.toLowerCase()) ?? trimmed;
+  };
 
   // AI sanity check state
   const [isSanityChecking, setIsSanityChecking] = useState(false);
@@ -164,9 +171,9 @@ export default function App() {
         return;
       }
 
-      // Build a lookup from corrected results, keyed by id
+      // Build a lookup from corrected results, keyed by id (canonicalize to standard names)
       const correctedMap = new Map(
-        corrected.map((c) => [c.id, c.category])
+        corrected.map((c) => [c.id, canonicalizeCategory(c.category)])
       );
 
       // Diff against keyword categories, keyed by item id
