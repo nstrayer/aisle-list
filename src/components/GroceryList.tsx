@@ -336,6 +336,13 @@ export function GroceryList({
 
   // FLIP animation: compare positions before and after render
   useLayoutEffect(() => {
+    // Skip FLIP calculations while any text input is active to avoid
+    // synchronous layout reflows (getBoundingClientRect) on every keystroke.
+    if (editingItem !== null || editingName || recategorizingItem !== null) {
+      prevPositions.current = new Map();
+      return;
+    }
+
     const currentPositions = new Map<string, number>();
     itemRefs.current.forEach((el, id) => {
       currentPositions.set(id, el.getBoundingClientRect().top);
