@@ -48,6 +48,13 @@ export default function App() {
     return sectionLookup.get(trimmed.toLowerCase()) ?? trimmed;
   };
 
+  // AI sanity check state
+  const [isSanityChecking, setIsSanityChecking] = useState(false);
+  const [pendingSuggestions, setPendingSuggestions] = useState<CategorySuggestion[] | null>(null);
+  const [sanityCheckError, setSanityCheckError] = useState<string | null>(null);
+  const sanityCheckSessionRef = useRef<string | null>(null);
+  const [lastCheckedFingerprint, setLastCheckedFingerprint] = useState<string | null>(null);
+
   // Fingerprint for detecting item changes since last sanity check
   const getItemsFingerprint = (itemList: GroceryItem[]): string =>
     itemList.map((i) => `${i.id}:${i.name}`).sort().join("|");
@@ -55,13 +62,6 @@ export default function App() {
   const itemsChangedSinceCheck =
     lastCheckedFingerprint !== null &&
     getItemsFingerprint(items) !== lastCheckedFingerprint;
-
-  // AI sanity check state
-  const [isSanityChecking, setIsSanityChecking] = useState(false);
-  const [pendingSuggestions, setPendingSuggestions] = useState<CategorySuggestion[] | null>(null);
-  const [sanityCheckError, setSanityCheckError] = useState<string | null>(null);
-  const sanityCheckSessionRef = useRef<string | null>(null);
-  const [lastCheckedFingerprint, setLastCheckedFingerprint] = useState<string | null>(null);
 
   // Load API key and migrate/restore session on mount
   useEffect(() => {
