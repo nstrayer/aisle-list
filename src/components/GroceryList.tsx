@@ -126,6 +126,7 @@ export function GroceryList({
   onRecategorize,
 }: GroceryListProps) {
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [suggestionsExpanded, setSuggestionsExpanded] = useState(false);
   const [nameValue, setNameValue] = useState(sessionName ?? "");
@@ -285,6 +286,7 @@ export function GroceryList({
     };
     onUpdateItems([...items, newItem]);
     setEditingItem(newItem.id);
+    setEditingValue("New item");
   };
 
   // Group items by category (use null-prototype object to avoid __proto__ collisions)
@@ -632,18 +634,12 @@ export function GroceryList({
                           {editingItem === item.id ? (
                             <input
                               type="text"
-                              value={item.name}
-                              onChange={(e) =>
-                                onUpdateItems(
-                                  items.map((i) =>
-                                    i.id === item.id ? { ...i, name: e.target.value } : i
-                                  )
-                                )
-                              }
-                              onBlur={() => updateItemName(item.id, item.name)}
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={() => updateItemName(item.id, editingValue)}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
-                                  updateItemName(item.id, item.name);
+                                  updateItemName(item.id, editingValue);
                                 }
                               }}
                               autoFocus
@@ -657,6 +653,7 @@ export function GroceryList({
                                   return;
                                 }
                                 setEditingItem(item.id);
+                                setEditingValue(item.name);
                               }}
                               onContextMenu={(e) => {
                                 e.preventDefault();
