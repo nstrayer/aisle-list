@@ -140,7 +140,6 @@ export default function App() {
     setIsSanityChecking(true);
     setPendingSuggestions(null);
     setSanityCheckError(null);
-    setLastCheckedFingerprint(getItemsFingerprint(checkItems));
     try {
       const itemPairs = checkItems.map((item) => ({
         id: item.id,
@@ -180,6 +179,7 @@ export default function App() {
         console.log("[API Debug] Sanity check diffs:", diffs);
       }
 
+      setLastCheckedFingerprint(getItemsFingerprint(checkItems));
       if (diffs.length > 0) {
         setPendingSuggestions(diffs);
       }
@@ -187,7 +187,6 @@ export default function App() {
       console.warn("AI sanity check failed:", err);
       if (sanityCheckSessionRef.current === sessionId) {
         setSanityCheckError("Category refinement failed -- items may be in wrong sections.");
-        setLastCheckedFingerprint(null);
       }
     } finally {
       if (sanityCheckSessionRef.current === sessionId) {
