@@ -48,11 +48,20 @@ export default function App() {
     return sectionLookup.get(trimmed.toLowerCase()) ?? trimmed;
   };
 
+  // Fingerprint for detecting item changes since last sanity check
+  const getItemsFingerprint = (itemList: GroceryItem[]): string =>
+    itemList.map((i) => `${i.id}:${i.name}`).sort().join("|");
+
+  const itemsChangedSinceCheck =
+    lastCheckedFingerprint !== null &&
+    getItemsFingerprint(items) !== lastCheckedFingerprint;
+
   // AI sanity check state
   const [isSanityChecking, setIsSanityChecking] = useState(false);
   const [pendingSuggestions, setPendingSuggestions] = useState<CategorySuggestion[] | null>(null);
   const [sanityCheckError, setSanityCheckError] = useState<string | null>(null);
   const sanityCheckSessionRef = useRef<string | null>(null);
+  const [lastCheckedFingerprint, setLastCheckedFingerprint] = useState<string | null>(null);
 
   // Load API key and migrate/restore session on mount
   useEffect(() => {
@@ -126,6 +135,71 @@ export default function App() {
     }
   };
 
+  const runSanityCheck = async (checkItems: GroceryItem[], sessionId: string) => {
+    sanityCheckSessionRef.current = sessionId;
+    setIsSanityChecking(true);
+    setPendingSuggestions(null);
+    setSanityCheckError(null);
+    setLastCheckedFingerprint(getItemsFingerprint(checkItems));
+    try {
+      const itemPairs = checkItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+      }));
+      const corrected = await sanityCheckCategories(itemPairs, apiKey);
+
+      // Ignore stale results if the user switched sessions
+      if (sanityCheckSessionRef.current !== sessionId) {
+        if (localStorage.getItem("debug_api") === "true") {
+          console.log("[API Debug] Sanity check result discarded (stale session)");
+        }
+        return;
+      }
+
+      // Build a lookup from corrected results, keyed by id (canonicalize to standard names)
+      const correctedMap = new Map(
+        corrected.map((c) => [c.id, canonicalizeCategory(c.category)])
+      );
+
+      // Diff against current categories, keyed by item id
+      const diffs: CategorySuggestion[] = [];
+      for (const item of checkItems) {
+        const newCategory = correctedMap.get(item.id);
+        if (newCategory && newCategory !== item.category) {
+          diffs.push({
+            id: item.id,
+            name: item.name,
+            from: item.category,
+            to: newCategory,
+          });
+        }
+      }
+
+      if (localStorage.getItem("debug_api") === "true") {
+        console.log("[API Debug] Sanity check diffs:", diffs);
+      }
+
+      if (diffs.length > 0) {
+        setPendingSuggestions(diffs);
+      }
+    } catch (err) {
+      console.warn("AI sanity check failed:", err);
+      if (sanityCheckSessionRef.current === sessionId) {
+        setSanityCheckError("Category refinement failed -- items may be in wrong sections.");
+      }
+    } finally {
+      if (sanityCheckSessionRef.current === sessionId) {
+        setIsSanityChecking(false);
+      }
+    }
+  };
+
+  const handleRecategorize = () => {
+    if (!currentSessionId || items.length === 0) return;
+    runSanityCheck(items, currentSessionId);
+  };
+
   const handleConfirmSections = async (selectedSections: GrocerySection[]) => {
     // Flatten all items from selected sections and categorize them
     const allItems: GroceryItem[] = [];
@@ -150,63 +224,7 @@ export default function App() {
     setAppState("list");
 
     // Run AI sanity check in background
-    const checkSessionId = session.id;
-    sanityCheckSessionRef.current = checkSessionId;
-    setIsSanityChecking(true);
-    setPendingSuggestions(null);
-    setSanityCheckError(null);
-    try {
-      const itemPairs = allItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-      }));
-      const corrected = await sanityCheckCategories(itemPairs, apiKey);
-
-      // Ignore stale results if the user switched sessions
-      if (sanityCheckSessionRef.current !== checkSessionId) {
-        if (localStorage.getItem("debug_api") === "true") {
-          console.log("[API Debug] Sanity check result discarded (stale session)");
-        }
-        return;
-      }
-
-      // Build a lookup from corrected results, keyed by id (canonicalize to standard names)
-      const correctedMap = new Map(
-        corrected.map((c) => [c.id, canonicalizeCategory(c.category)])
-      );
-
-      // Diff against keyword categories, keyed by item id
-      const diffs: CategorySuggestion[] = [];
-      for (const item of allItems) {
-        const newCategory = correctedMap.get(item.id);
-        if (newCategory && newCategory !== item.category) {
-          diffs.push({
-            id: item.id,
-            name: item.name,
-            from: item.category,
-            to: newCategory,
-          });
-        }
-      }
-
-      if (localStorage.getItem("debug_api") === "true") {
-        console.log("[API Debug] Sanity check diffs:", diffs);
-      }
-
-      if (diffs.length > 0) {
-        setPendingSuggestions(diffs);
-      }
-    } catch (err) {
-      console.warn("AI sanity check failed:", err);
-      if (sanityCheckSessionRef.current === checkSessionId) {
-        setSanityCheckError("Category refinement failed -- items may be in wrong sections.");
-      }
-    } finally {
-      if (sanityCheckSessionRef.current === checkSessionId) {
-        setIsSanityChecking(false);
-      }
-    }
+    runSanityCheck(allItems, session.id);
   };
 
   const handleAcceptSuggestions = () => {
@@ -242,6 +260,7 @@ export default function App() {
     setSanityCheckError(null);
     setIsSanityChecking(false);
     sanityCheckSessionRef.current = null;
+    setLastCheckedFingerprint(null);
     setAppState("upload");
   };
 
@@ -264,6 +283,7 @@ export default function App() {
     setSanityCheckError(null);
     setIsSanityChecking(false);
     sanityCheckSessionRef.current = null;
+    setLastCheckedFingerprint(null);
 
     const image = loadSessionImage(id);
     setUploadedImage(image);
@@ -381,6 +401,8 @@ export default function App() {
         onRejectSuggestions={handleRejectSuggestions}
         sanityCheckError={sanityCheckError}
         onDismissSanityError={() => setSanityCheckError(null)}
+        itemsChangedSinceCheck={itemsChangedSinceCheck}
+        onRecategorize={handleRecategorize}
       />
       <HistoryPanel
         isOpen={isHistoryOpen}
