@@ -32,3 +32,9 @@ export interface SessionIndexEntry {
   checkedCount: number;
   hasImage: boolean;
 }
+
+export interface CategorySuggestion {
+  name: string;
+  from: string;
+  to: string;
+}

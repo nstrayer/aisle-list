@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
-import type { GroceryItem } from "@/lib/types";
+import type { GroceryItem, CategorySuggestion } from "@/lib/types";
 import { SECTION_ORDER, SECTION_COLORS, categorizeItem } from "@/lib/store-sections";
 import { ImageThumbnail } from "./ImageThumbnail";
 import { DarkModeToggle } from "./DarkModeToggle";
@@ -15,6 +15,10 @@ interface GroceryListProps {
   sessionName?: string;
   onOpenHistory?: () => void;
   onRenameSession?: (name: string) => void;
+  isSanityChecking?: boolean;
+  pendingSuggestions?: CategorySuggestion[] | null;
+  onAcceptSuggestions?: () => void;
+  onRejectSuggestions?: () => void;
 }
 
 // Progress Ring Component
@@ -107,9 +111,14 @@ export function GroceryList({
   sessionName,
   onOpenHistory,
   onRenameSession,
+  isSanityChecking,
+  pendingSuggestions,
+  onAcceptSuggestions,
+  onRejectSuggestions,
 }: GroceryListProps) {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
+  const [suggestionsExpanded, setSuggestionsExpanded] = useState(false);
   const [nameValue, setNameValue] = useState(sessionName ?? "");
   const [animatingCheckbox, setAnimatingCheckbox] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -413,6 +422,66 @@ export function GroceryList({
               )}
             </div>
           </div>
+
+          {/* AI sanity check banner */}
+          {isSanityChecking && (
+            <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm">
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Refining categories...
+            </div>
+          )}
+
+          {pendingSuggestions && pendingSuggestions.length > 0 && (
+            <div className="mb-4 rounded-lg border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2">
+                <button
+                  onClick={() => setSuggestionsExpanded(!suggestionsExpanded)}
+                  className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-300"
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${suggestionsExpanded ? "rotate-90" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  AI suggests {pendingSuggestions.length} category change{pendingSuggestions.length !== 1 ? "s" : ""}
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={onAcceptSuggestions}
+                    className="px-3 py-1 text-xs font-medium rounded bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-400 dark:text-gray-900"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={onRejectSuggestions}
+                    className="px-3 py-1 text-xs font-medium rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+              {suggestionsExpanded && (
+                <div className="px-3 pb-3 space-y-1">
+                  {pendingSuggestions.map((s, i) => (
+                    <div key={i} className="text-xs text-amber-900 dark:text-amber-200 flex items-center gap-1">
+                      <span className="font-medium">{s.name}:</span>
+                      <span className="text-amber-600 dark:text-amber-400">{s.from}</span>
+                      <svg className="w-3 h-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                      <span className="text-amber-700 dark:text-amber-300 font-medium">{s.to}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {sortedSections.map((section) => {
             const colors = getSectionColors(section);

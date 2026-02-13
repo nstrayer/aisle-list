@@ -5,9 +5,9 @@ import { ClarifyScreen } from "@/components/ClarifyScreen";
 import { GroceryList } from "@/components/GroceryList";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { HistoryPanel } from "@/components/HistoryPanel";
-import type { GrocerySection, GroceryItem, SessionIndexEntry } from "@/lib/types";
+import type { GrocerySection, GroceryItem, SessionIndexEntry, CategorySuggestion } from "@/lib/types";
 import { categorizeItem } from "@/lib/store-sections";
-import { analyzeGroceryImage } from "@/lib/anthropic-client";
+import { analyzeGroceryImage, sanityCheckCategories } from "@/lib/anthropic-client";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
@@ -40,6 +40,10 @@ export default function App() {
   const [sessionsIndex, setSessionsIndex] = useState<SessionIndexEntry[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [sessionName, setSessionName] = useState<string>("");
+
+  // AI sanity check state
+  const [isSanityChecking, setIsSanityChecking] = useState(false);
+  const [pendingSuggestions, setPendingSuggestions] = useState<CategorySuggestion[] | null>(null);
 
   // Load API key and migrate/restore session on mount
   useEffect(() => {
@@ -113,7 +117,7 @@ export default function App() {
     }
   };
 
-  const handleConfirmSections = (selectedSections: GrocerySection[]) => {
+  const handleConfirmSections = async (selectedSections: GrocerySection[]) => {
     // Flatten all items from selected sections and categorize them
     const allItems: GroceryItem[] = [];
     selectedSections.forEach((section) => {
@@ -127,15 +131,71 @@ export default function App() {
       });
     });
 
-    // Create a new session
+    // Create a new session and show list immediately
     const session = createSession(allItems, uploadedImage);
     setCurrentSessionIdState(session.id);
     setSessionName(session.name);
     setCurrentSessionId(session.id);
     setSessionsIndex(loadSessionsIndex());
-
     setItems(allItems);
     setAppState("list");
+
+    // Run AI sanity check in background
+    setIsSanityChecking(true);
+    setPendingSuggestions(null);
+    try {
+      const itemPairs = allItems.map((item) => ({
+        name: item.name,
+        category: item.category,
+      }));
+      const corrected = await sanityCheckCategories(itemPairs, apiKey);
+
+      // Build a lookup from corrected results
+      const correctedMap = new Map(
+        corrected.map((c) => [c.name, c.category])
+      );
+
+      // Diff against keyword categories
+      const diffs: CategorySuggestion[] = [];
+      for (const item of allItems) {
+        const newCategory = correctedMap.get(item.name);
+        if (newCategory && newCategory !== item.category) {
+          diffs.push({
+            name: item.name,
+            from: item.category,
+            to: newCategory,
+          });
+        }
+      }
+
+      if (diffs.length > 0) {
+        setPendingSuggestions(diffs);
+      }
+    } catch (err) {
+      console.warn("AI sanity check failed:", err);
+    } finally {
+      setIsSanityChecking(false);
+    }
+  };
+
+  const handleAcceptSuggestions = () => {
+    if (!pendingSuggestions) return;
+
+    const suggestionMap = new Map(
+      pendingSuggestions.map((s) => [s.name, s.to])
+    );
+
+    setItems((prev) =>
+      prev.map((item) => {
+        const newCategory = suggestionMap.get(item.name);
+        return newCategory ? { ...item, category: newCategory } : item;
+      })
+    );
+    setPendingSuggestions(null);
+  };
+
+  const handleRejectSuggestions = () => {
+    setPendingSuggestions(null);
   };
 
   const handleNewList = () => {
@@ -147,6 +207,8 @@ export default function App() {
     setCurrentSessionIdState(null);
     setSessionName("");
     setCurrentSessionId(null);
+    setPendingSuggestions(null);
+    setIsSanityChecking(false);
     setAppState("upload");
   };
 
@@ -276,6 +338,10 @@ export default function App() {
             handleRenameSession(currentSessionId, name);
           }
         }}
+        isSanityChecking={isSanityChecking}
+        pendingSuggestions={pendingSuggestions}
+        onAcceptSuggestions={handleAcceptSuggestions}
+        onRejectSuggestions={handleRejectSuggestions}
       />
       <HistoryPanel
         isOpen={isHistoryOpen}
