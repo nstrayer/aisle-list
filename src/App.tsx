@@ -187,6 +187,7 @@ export default function App() {
       console.warn("AI sanity check failed:", err);
       if (sanityCheckSessionRef.current === sessionId) {
         setSanityCheckError("Category refinement failed -- items may be in wrong sections.");
+        setLastCheckedFingerprint(null);
       }
     } finally {
       if (sanityCheckSessionRef.current === sessionId) {
