@@ -19,6 +19,8 @@ interface GroceryListProps {
   pendingSuggestions?: CategorySuggestion[] | null;
   onAcceptSuggestions?: () => void;
   onRejectSuggestions?: () => void;
+  sanityCheckError?: string | null;
+  onDismissSanityError?: () => void;
 }
 
 // Progress Ring Component
@@ -115,6 +117,8 @@ export function GroceryList({
   pendingSuggestions,
   onAcceptSuggestions,
   onRejectSuggestions,
+  sanityCheckError,
+  onDismissSanityError,
 }: GroceryListProps) {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
@@ -431,6 +435,21 @@ export function GroceryList({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
               Refining categories...
+            </div>
+          )}
+
+          {sanityCheckError && (
+            <div className="mb-4 flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+              <span>{sanityCheckError}</span>
+              <button
+                onClick={onDismissSanityError}
+                className="shrink-0 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-800/30"
+                aria-label="Dismiss"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           )}
 

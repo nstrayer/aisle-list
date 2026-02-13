@@ -44,6 +44,7 @@ export default function App() {
   // AI sanity check state
   const [isSanityChecking, setIsSanityChecking] = useState(false);
   const [pendingSuggestions, setPendingSuggestions] = useState<CategorySuggestion[] | null>(null);
+  const [sanityCheckError, setSanityCheckError] = useState<string | null>(null);
   const sanityCheckSessionRef = useRef<string | null>(null);
 
   // Load API key and migrate/restore session on mount
@@ -146,6 +147,7 @@ export default function App() {
     sanityCheckSessionRef.current = checkSessionId;
     setIsSanityChecking(true);
     setPendingSuggestions(null);
+    setSanityCheckError(null);
     try {
       const itemPairs = allItems.map((item) => ({
         id: item.id,
@@ -190,6 +192,9 @@ export default function App() {
       }
     } catch (err) {
       console.warn("AI sanity check failed:", err);
+      if (sanityCheckSessionRef.current === checkSessionId) {
+        setSanityCheckError("Category refinement failed -- items may be in wrong sections.");
+      }
     } finally {
       if (sanityCheckSessionRef.current === checkSessionId) {
         setIsSanityChecking(false);
@@ -227,6 +232,7 @@ export default function App() {
     setSessionName("");
     setCurrentSessionId(null);
     setPendingSuggestions(null);
+    setSanityCheckError(null);
     setIsSanityChecking(false);
     sanityCheckSessionRef.current = null;
     setAppState("upload");
@@ -248,6 +254,7 @@ export default function App() {
     setItems(session.items);
     setSessionName(session.name);
     setPendingSuggestions(null);
+    setSanityCheckError(null);
     setIsSanityChecking(false);
     sanityCheckSessionRef.current = null;
 
@@ -365,6 +372,8 @@ export default function App() {
         pendingSuggestions={pendingSuggestions}
         onAcceptSuggestions={handleAcceptSuggestions}
         onRejectSuggestions={handleRejectSuggestions}
+        sanityCheckError={sanityCheckError}
+        onDismissSanityError={() => setSanityCheckError(null)}
       />
       <HistoryPanel
         isOpen={isHistoryOpen}
