@@ -134,6 +134,7 @@ export function GroceryList({
   const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null);
   const [customSection, setCustomSection] = useState("");
   const longPressTimer = useRef<number | null>(null);
+  const longPressTriggered = useRef(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // Settling state for delayed reorder animation
@@ -180,6 +181,15 @@ export function GroceryList({
     };
   }, [recategorizingItem]);
 
+  // Clear long-press timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current != null) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, []);
+
   const openCategoryPicker = useCallback((itemId: string, x: number, y: number) => {
     // Clamp position so picker stays within viewport
     const pickerWidth = 220;
@@ -192,6 +202,9 @@ export function GroceryList({
   }, []);
 
   const recategorizeItem = useCallback((itemId: string, newCategory: string) => {
+    const RESERVED_KEYS = ["__proto__", "constructor", "prototype"];
+    if (RESERVED_KEYS.includes(newCategory)) return;
+
     onUpdateItems(
       items.map((item) =>
         item.id === itemId ? { ...item, category: newCategory } : item
@@ -281,7 +294,7 @@ export function GroceryList({
 
   // Sort each section: unchecked first, checked last.
   // Items in settlingItems are treated as unchecked (stay in place during delay).
-  const sortedGroupedItems: Record<string, GroceryItem[]> = {};
+  const sortedGroupedItems: Record<string, GroceryItem[]> = Object.create(null) as Record<string, GroceryItem[]>;
   for (const section of Object.keys(groupedItems)) {
     const sectionItems = groupedItems[section];
     const unchecked = sectionItems.filter(
@@ -621,16 +634,24 @@ export function GroceryList({
                             />
                           ) : (
                             <span
-                              onClick={() => setEditingItem(item.id)}
+                              onClick={() => {
+                                if (longPressTriggered.current) {
+                                  longPressTriggered.current = false;
+                                  return;
+                                }
+                                setEditingItem(item.id);
+                              }}
                               onContextMenu={(e) => {
                                 e.preventDefault();
                                 openCategoryPicker(item.id, e.clientX, e.clientY);
                               }}
                               onTouchStart={(e) => {
+                                longPressTriggered.current = false;
                                 const touch = e.touches[0];
                                 const x = touch.clientX;
                                 const y = touch.clientY;
                                 longPressTimer.current = window.setTimeout(() => {
+                                  longPressTriggered.current = true;
                                   openCategoryPicker(item.id, x, y);
                                   longPressTimer.current = null;
                                 }, 500);
@@ -642,6 +663,12 @@ export function GroceryList({
                                 }
                               }}
                               onTouchMove={() => {
+                                if (longPressTimer.current != null) {
+                                  clearTimeout(longPressTimer.current);
+                                  longPressTimer.current = null;
+                                }
+                              }}
+                              onTouchCancel={() => {
                                 if (longPressTimer.current != null) {
                                   clearTimeout(longPressTimer.current);
                                   longPressTimer.current = null;

@@ -312,7 +312,7 @@ const DYNAMIC_SECTION_COLORS = [
 
 /** Returns colors for a section -- fixed colors for known sections, deterministic palette pick for dynamic ones */
 export function getSectionColors(section: string): { bg: string; text: string; border: string; darkBg: string; darkText: string; darkBorder: string } {
-  if (SECTION_COLORS[section]) return SECTION_COLORS[section];
+  if (Object.hasOwn(SECTION_COLORS, section)) return SECTION_COLORS[section];
   // Deterministic hash based on char codes
   let hash = 0;
   for (let i = 0; i < section.length; i++) {
