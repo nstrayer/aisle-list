@@ -133,7 +133,9 @@ export async function analyzeGroceryImage(
 
 const SANITY_CHECK_PROMPT = `You are a grocery store categorization expert. Review the following grocery items and their assigned store sections. Fix any miscategorizations and assign better categories to items marked "Other".
 
-Valid store sections: ${SECTION_ORDER.join(", ")}
+Preferred store sections: ${SECTION_ORDER.join(", ")}
+
+If an item does not fit well into any of the above sections, you may propose a new short, Title Case section name (e.g., "Baby Products", "Pet Supplies", "Health & Beauty"). Only create a new section when the standard ones are a genuinely poor fit.
 
 Items to review:
 `;
@@ -159,8 +161,7 @@ const SANITY_CHECK_TOOL: Anthropic.Tool = {
             },
             category: {
               type: "string",
-              enum: SECTION_ORDER,
-              description: "The correct store section for this item",
+              description: "The correct store section for this item. Use one of the standard sections when possible, or propose a new short Title Case section name when none fit well.",
             },
           },
           required: ["id", "name", "category"],

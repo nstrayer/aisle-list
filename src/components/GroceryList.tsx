@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import type { GroceryItem, CategorySuggestion } from "@/lib/types";
-import { SECTION_ORDER, SECTION_COLORS, categorizeItem } from "@/lib/store-sections";
+import { SECTION_ORDER, categorizeItem, getSectionColors } from "@/lib/store-sections";
 import { ImageThumbnail } from "./ImageThumbnail";
 import { DarkModeToggle } from "./DarkModeToggle";
 import { SwipeableItem } from "./SwipeableItem";
@@ -238,9 +238,17 @@ export function GroceryList({
     sortedGroupedItems[section] = [...unchecked, ...checked];
   }
 
-  const sortedSections = SECTION_ORDER.filter(
-    (section) => sortedGroupedItems[section]?.length > 0
+  const knownSections = SECTION_ORDER.filter(
+    (section) => section !== "Other" && sortedGroupedItems[section]?.length > 0
   );
+  const dynamicSections = Object.keys(sortedGroupedItems)
+    .filter((s) => !SECTION_ORDER.includes(s))
+    .sort();
+  const sortedSections = [
+    ...knownSections,
+    ...dynamicSections,
+    ...(sortedGroupedItems["Other"]?.length > 0 ? ["Other"] : []),
+  ];
 
   const checkedCount = items.filter((i) => i.checked).length;
   const progress = items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0;
@@ -250,10 +258,6 @@ export function GroceryList({
       onRenameSession(nameValue.trim());
     }
     setEditingName(false);
-  };
-
-  const getSectionColors = (section: string) => {
-    return SECTION_COLORS[section] || SECTION_COLORS["Other"];
   };
 
   // FLIP animation: compare positions before and after render

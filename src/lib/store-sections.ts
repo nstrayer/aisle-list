@@ -295,6 +295,27 @@ export const SECTION_COLORS: Record<string, { bg: string; text: string; border: 
   },
 };
 
+// Color palette for AI-proposed dynamic sections
+const DYNAMIC_SECTION_COLORS = [
+  { bg: "bg-violet-100", text: "text-violet-700", border: "border-violet-400", darkBg: "dark:bg-violet-900/30", darkText: "dark:text-violet-400", darkBorder: "dark:border-violet-600" },
+  { bg: "bg-rose-100", text: "text-rose-700", border: "border-rose-400", darkBg: "dark:bg-rose-900/30", darkText: "dark:text-rose-400", darkBorder: "dark:border-rose-600" },
+  { bg: "bg-indigo-100", text: "text-indigo-700", border: "border-indigo-400", darkBg: "dark:bg-indigo-900/30", darkText: "dark:text-indigo-400", darkBorder: "dark:border-indigo-600" },
+  { bg: "bg-lime-100", text: "text-lime-700", border: "border-lime-400", darkBg: "dark:bg-lime-900/30", darkText: "dark:text-lime-400", darkBorder: "dark:border-lime-600" },
+  { bg: "bg-fuchsia-100", text: "text-fuchsia-700", border: "border-fuchsia-400", darkBg: "dark:bg-fuchsia-900/30", darkText: "dark:text-fuchsia-400", darkBorder: "dark:border-fuchsia-600" },
+  { bg: "bg-sky-100", text: "text-sky-700", border: "border-sky-400", darkBg: "dark:bg-sky-900/30", darkText: "dark:text-sky-400", darkBorder: "dark:border-sky-600" },
+];
+
+/** Returns colors for a section -- fixed colors for known sections, deterministic palette pick for dynamic ones */
+export function getSectionColors(section: string): { bg: string; text: string; border: string; darkBg: string; darkText: string; darkBorder: string } {
+  if (SECTION_COLORS[section]) return SECTION_COLORS[section];
+  // Deterministic hash based on char codes
+  let hash = 0;
+  for (let i = 0; i < section.length; i++) {
+    hash = (hash + section.charCodeAt(i)) * 31;
+  }
+  return DYNAMIC_SECTION_COLORS[Math.abs(hash) % DYNAMIC_SECTION_COLORS.length];
+}
+
 export function categorizeItem(itemName: string): string {
   const lowerItem = itemName.toLowerCase();
 
