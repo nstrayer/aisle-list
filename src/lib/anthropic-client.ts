@@ -2,6 +2,22 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { GrocerySection } from "./types";
 import { SECTION_ORDER } from "./store-sections";
 
+function isDebug(): boolean {
+  try {
+    return localStorage.getItem("debug_api") === "true";
+  } catch {
+    return false;
+  }
+}
+
+function debugLog(label: string, data: unknown) {
+  if (isDebug()) {
+    console.group(`[API Debug] ${label}`);
+    console.log(data);
+    console.groupEnd();
+  }
+}
+
 const ANALYZE_PROMPT = `Analyze this handwritten list. Identify distinct sections:
 - Items under store names (Kroger, Costco, Target, etc.) - use the store name as section name
 - Meal plans (days of week with dishes) - type "meal_plan"
@@ -61,6 +77,13 @@ export async function analyzeGroceryImage(
     dangerouslyAllowBrowser: true,
   });
 
+  debugLog("analyzeGroceryImage request", {
+    model: "claude-sonnet-4-5-20250929",
+    prompt: ANALYZE_PROMPT,
+    mediaType,
+    imageLength: imageBase64.length,
+  });
+
   const response = await client.messages.create({
     model: "claude-sonnet-4-5-20250929",
     max_tokens: 4096,
@@ -91,6 +114,12 @@ export async function analyzeGroceryImage(
     ],
   });
 
+  debugLog("analyzeGroceryImage response", {
+    stopReason: response.stop_reason,
+    usage: response.usage,
+    content: response.content,
+  });
+
   // Extract tool use result
   const toolUse = response.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
@@ -98,6 +127,7 @@ export async function analyzeGroceryImage(
   }
 
   const input = toolUse.input as ToolInput;
+  debugLog("analyzeGroceryImage parsed", input.sections);
   return input.sections;
 }
 
@@ -158,6 +188,13 @@ export async function sanityCheckCategories(
     .map((item) => `- [${item.id}] "${item.name}" -> ${item.category}`)
     .join("\n");
 
+  const fullPrompt = SANITY_CHECK_PROMPT + itemList;
+  debugLog("sanityCheckCategories request", {
+    model: "claude-haiku-4-5-20250929",
+    prompt: fullPrompt,
+    itemCount: items.length,
+  });
+
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20250929",
     max_tokens: 2048,
@@ -166,9 +203,15 @@ export async function sanityCheckCategories(
     messages: [
       {
         role: "user",
-        content: SANITY_CHECK_PROMPT + itemList,
+        content: fullPrompt,
       },
     ],
+  });
+
+  debugLog("sanityCheckCategories response", {
+    stopReason: response.stop_reason,
+    usage: response.usage,
+    content: response.content,
   });
 
   const toolUse = response.content.find((block) => block.type === "tool_use");
@@ -177,5 +220,6 @@ export async function sanityCheckCategories(
   }
 
   const input = toolUse.input as SanityCheckInput;
+  debugLog("sanityCheckCategories parsed", input.items);
   return input.items;
 }

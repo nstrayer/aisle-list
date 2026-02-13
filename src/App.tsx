@@ -155,7 +155,12 @@ export default function App() {
       const corrected = await sanityCheckCategories(itemPairs, apiKey);
 
       // Ignore stale results if the user switched sessions
-      if (sanityCheckSessionRef.current !== checkSessionId) return;
+      if (sanityCheckSessionRef.current !== checkSessionId) {
+        if (localStorage.getItem("debug_api") === "true") {
+          console.log("[API Debug] Sanity check result discarded (stale session)");
+        }
+        return;
+      }
 
       // Build a lookup from corrected results, keyed by id
       const correctedMap = new Map(
@@ -174,6 +179,10 @@ export default function App() {
             to: newCategory,
           });
         }
+      }
+
+      if (localStorage.getItem("debug_api") === "true") {
+        console.log("[API Debug] Sanity check diffs:", diffs);
       }
 
       if (diffs.length > 0) {
