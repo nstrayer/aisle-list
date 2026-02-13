@@ -34,6 +34,7 @@ export interface SessionIndexEntry {
 }
 
 export interface CategorySuggestion {
+  id: string;
   name: string;
   from: string;
   to: string;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ApiKeyInput } from "@/components/ApiKeyInput";
 import { ImageUpload } from "@/components/ImageUpload";
 import { ClarifyScreen } from "@/components/ClarifyScreen";
@@ -44,6 +44,7 @@ export default function App() {
   // AI sanity check state
   const [isSanityChecking, setIsSanityChecking] = useState(false);
   const [pendingSuggestions, setPendingSuggestions] = useState<CategorySuggestion[] | null>(null);
+  const sanityCheckSessionRef = useRef<string | null>(null);
 
   // Load API key and migrate/restore session on mount
   useEffect(() => {
@@ -141,6 +142,8 @@ export default function App() {
     setAppState("list");
 
     // Run AI sanity check in background
+    const checkSessionId = session.id;
+    sanityCheckSessionRef.current = checkSessionId;
     setIsSanityChecking(true);
     setPendingSuggestions(null);
     try {
@@ -150,17 +153,21 @@ export default function App() {
       }));
       const corrected = await sanityCheckCategories(itemPairs, apiKey);
 
+      // Ignore stale results if the user switched sessions
+      if (sanityCheckSessionRef.current !== checkSessionId) return;
+
       // Build a lookup from corrected results
       const correctedMap = new Map(
         corrected.map((c) => [c.name, c.category])
       );
 
-      // Diff against keyword categories
+      // Diff against keyword categories, keyed by item id
       const diffs: CategorySuggestion[] = [];
       for (const item of allItems) {
         const newCategory = correctedMap.get(item.name);
         if (newCategory && newCategory !== item.category) {
           diffs.push({
+            id: item.id,
             name: item.name,
             from: item.category,
             to: newCategory,
@@ -174,7 +181,9 @@ export default function App() {
     } catch (err) {
       console.warn("AI sanity check failed:", err);
     } finally {
-      setIsSanityChecking(false);
+      if (sanityCheckSessionRef.current === checkSessionId) {
+        setIsSanityChecking(false);
+      }
     }
   };
 
@@ -182,12 +191,12 @@ export default function App() {
     if (!pendingSuggestions) return;
 
     const suggestionMap = new Map(
-      pendingSuggestions.map((s) => [s.name, s.to])
+      pendingSuggestions.map((s) => [s.id, s.to])
     );
 
     setItems((prev) =>
       prev.map((item) => {
-        const newCategory = suggestionMap.get(item.name);
+        const newCategory = suggestionMap.get(item.id);
         return newCategory ? { ...item, category: newCategory } : item;
       })
     );
@@ -209,6 +218,7 @@ export default function App() {
     setCurrentSessionId(null);
     setPendingSuggestions(null);
     setIsSanityChecking(false);
+    sanityCheckSessionRef.current = null;
     setAppState("upload");
   };
 
@@ -227,6 +237,9 @@ export default function App() {
     setCurrentSessionId(id);
     setItems(session.items);
     setSessionName(session.name);
+    setPendingSuggestions(null);
+    setIsSanityChecking(false);
+    sanityCheckSessionRef.current = null;
 
     const image = loadSessionImage(id);
     setUploadedImage(image);
