@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { GroceryItem, CategorySuggestion } from "@/lib/types";
 import { SECTION_ORDER, categorizeItem, getSectionColors } from "@/lib/store-sections";
 import { ImageThumbnail } from "./ImageThumbnail";
@@ -128,6 +129,13 @@ export function GroceryList({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Category picker state
+  const [recategorizingItem, setRecategorizingItem] = useState<string | null>(null);
+  const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null);
+  const [customSection, setCustomSection] = useState("");
+  const longPressTimer = useRef<number | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
   // Settling state for delayed reorder animation
   const [settlingItems, setSettlingItems] = useState<Set<string>>(new Set());
   const settleTimers = useRef<Map<string, number>>(new Map());
@@ -146,6 +154,53 @@ export function GroceryList({
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [menuOpen]);
+
+  // Close category picker on click outside or Escape
+  useEffect(() => {
+    if (!recategorizingItem) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setRecategorizingItem(null);
+        setPickerPosition(null);
+        setCustomSection("");
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setRecategorizingItem(null);
+        setPickerPosition(null);
+        setCustomSection("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [recategorizingItem]);
+
+  const openCategoryPicker = useCallback((itemId: string, x: number, y: number) => {
+    // Clamp position so picker stays within viewport
+    const pickerWidth = 220;
+    const pickerHeight = 350;
+    const clampedX = Math.min(x, window.innerWidth - pickerWidth - 8);
+    const clampedY = Math.min(y, window.innerHeight - pickerHeight - 8);
+    setRecategorizingItem(itemId);
+    setPickerPosition({ top: Math.max(8, clampedY), left: Math.max(8, clampedX) });
+    setCustomSection("");
+  }, []);
+
+  const recategorizeItem = useCallback((itemId: string, newCategory: string) => {
+    onUpdateItems(
+      items.map((item) =>
+        item.id === itemId ? { ...item, category: newCategory } : item
+      )
+    );
+    setRecategorizingItem(null);
+    setPickerPosition(null);
+    setCustomSection("");
+  }, [items, onUpdateItems]);
 
   const toggleItem = useCallback((id: string) => {
     const item = items.find((i) => i.id === id);
@@ -567,11 +622,39 @@ export function GroceryList({
                           ) : (
                             <span
                               onClick={() => setEditingItem(item.id)}
-                              className={`flex-1 cursor-pointer py-2 ${
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                openCategoryPicker(item.id, e.clientX, e.clientY);
+                              }}
+                              onTouchStart={(e) => {
+                                const touch = e.touches[0];
+                                const x = touch.clientX;
+                                const y = touch.clientY;
+                                longPressTimer.current = window.setTimeout(() => {
+                                  openCategoryPicker(item.id, x, y);
+                                  longPressTimer.current = null;
+                                }, 500);
+                              }}
+                              onTouchEnd={() => {
+                                if (longPressTimer.current != null) {
+                                  clearTimeout(longPressTimer.current);
+                                  longPressTimer.current = null;
+                                }
+                              }}
+                              onTouchMove={() => {
+                                if (longPressTimer.current != null) {
+                                  clearTimeout(longPressTimer.current);
+                                  longPressTimer.current = null;
+                                }
+                              }}
+                              className={`flex-1 cursor-pointer py-2 flex items-center gap-2 ${
                                 item.checked ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-800 dark:text-gray-100"
                               }`}
                             >
                               {item.name}
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 whitespace-nowrap select-none">
+                                {item.category}
+                              </span>
                             </span>
                           )}
 
@@ -603,6 +686,71 @@ export function GroceryList({
           </button>
         </div>
       </div>
+
+      {/* Category picker dropdown (portal) */}
+      {recategorizingItem && pickerPosition && createPortal(
+        <div
+          ref={pickerRef}
+          className="fixed z-[100] w-56 max-h-80 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1"
+          style={{ top: pickerPosition.top, left: pickerPosition.left }}
+        >
+          <div className="px-3 py-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+            Move to section
+          </div>
+          {(() => {
+            const currentItem = items.find((i) => i.id === recategorizingItem);
+            const currentCategory = currentItem?.category;
+            // Deduplicate: SECTION_ORDER + any dynamic sections present in items
+            const presentSections = new Set(items.map((i) => i.category));
+            const allSections = [...SECTION_ORDER];
+            for (const s of presentSections) {
+              if (!allSections.includes(s)) allSections.push(s);
+            }
+            return allSections.map((section) => {
+              const sColors = getSectionColors(section);
+              const isActive = section === currentCategory;
+              return (
+                <button
+                  key={section}
+                  onClick={() => recategorizeItem(recategorizingItem!, section)}
+                  className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    isActive ? "bg-gray-100 dark:bg-gray-700 font-medium" : ""
+                  }`}
+                >
+                  <span className={`w-2.5 h-2.5 rounded-full ${sColors.bg} ${sColors.border} border ${sColors.darkBg} ${sColors.darkBorder}`} />
+                  <span className="text-gray-700 dark:text-gray-200">{section}</span>
+                  {isActive && (
+                    <svg className="w-4 h-4 ml-auto text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              );
+            });
+          })()}
+          <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1 px-2 pb-2">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const trimmed = customSection.trim();
+                if (trimmed) {
+                  recategorizeItem(recategorizingItem!, trimmed);
+                }
+              }}
+            >
+              <input
+                type="text"
+                value={customSection}
+                onChange={(e) => setCustomSection(e.target.value)}
+                placeholder="Custom section..."
+                className="w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                autoFocus
+              />
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
