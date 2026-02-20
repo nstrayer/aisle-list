@@ -2,7 +2,7 @@
 
 Branch: `feature/swiftui-migration`
 
-## Phase 1: Core SwiftUI App with BYOK -- IN PROGRESS
+## Phase 1: Core SwiftUI App with BYOK -- COMPLETE
 
 ### Completed Tasks
 
@@ -41,11 +41,11 @@ Info.plist expanded from camera/photo usage descriptions to full bundle configur
 
 - Removed `@Attribute(.unique)` from `GroceryItem.id` -- CloudKit does not support unique constraints and this causes silent sync failures (no errors, data just doesn't sync). See `gotchas-and-lessons.md` for full CloudKit model requirements.
 
-### Not Yet Done
+### Deferred (independent of Phase 1 functionality)
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| 1.15 | CloudKit configuration | Blocked: need iCloud container created in Xcode (auto-registers in portal). Steps: add iCloud capability, enable CloudKit, create container `iCloud.com.aislelist.app`, add Background Modes with Remote notifications. No code changes needed. |
+| 1.15 | CloudKit configuration | Need iCloud container created in Xcode (auto-registers in portal). Steps: add iCloud capability, enable CloudKit, create container `iCloud.com.aislelist.app`, add Background Modes with Remote notifications. No code changes needed. Can be done anytime. |
 
 ### abs() Overflow Fix (commit f899314)
 
@@ -74,7 +74,7 @@ These were addressed in a prior commit:
 | 2.4 | Supabase analysis service | `Services/Implementations/SupabaseAnalysisService.swift` (calls edge function, handles scan limit errors via `SupabaseAnalysisError`) |
 | 2.5 | Integration | `AIsleListApp.swift` (auth/analysis service setup + environment injection), `ContentView.swift` (dual-mode: authModeContent vs byokModeContent), `ServiceEnvironmentKeys.swift` (added AuthServiceKey). BYOK kept as fallback when Supabase not configured via Info.plist detection. |
 
-### Phase 2 Hardening (latest changes)
+### Phase 2 Hardening (commits 6bcf987, 428a287)
 
 Several robustness improvements across the Supabase integration:
 
