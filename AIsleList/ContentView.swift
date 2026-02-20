@@ -42,11 +42,16 @@ struct ContentView: View {
         .preferredColorScheme(prefersDarkMode ? .dark : .light)
         .onAppear {
             if isAuthMode {
-                // In auth mode, always start at upload (auth gate handles sign-in)
                 if viewModel.currentRoute == .apiKey {
                     viewModel.currentRoute = .upload
                 }
             } else if KeychainHelper.load(key: keychainKey) != nil {
+                viewModel.currentRoute = .upload
+            }
+        }
+        .onChange(of: isAuthMode) { _, newValue in
+            // authService is set async in .task; catch late transitions
+            if newValue, viewModel.currentRoute == .apiKey {
                 viewModel.currentRoute = .upload
             }
         }

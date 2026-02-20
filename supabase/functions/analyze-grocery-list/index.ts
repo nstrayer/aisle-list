@@ -165,6 +165,15 @@ function validatePayload(body: unknown): RequestPayload | null {
 
   if (obj.action === "sanity_check") {
     if (!Array.isArray(obj.items) || obj.items.length === 0) return null;
+    const valid = obj.items.every(
+      (item: unknown) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).id === "string" &&
+        typeof (item as Record<string, unknown>).name === "string" &&
+        typeof (item as Record<string, unknown>).category === "string"
+    );
+    if (!valid) return null;
     return obj as unknown as SanityCheckPayload;
   }
 
