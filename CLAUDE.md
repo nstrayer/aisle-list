@@ -89,29 +89,14 @@ Edit the `STORE_SECTIONS` object in `src/lib/store-sections.ts` to add new secti
 
 ## iOS App (AIsleList/)
 
-SwiftUI migration of the web app. Lives in `AIsleList/` directory.
-
-- **Build system**: Uses xcodegen (`project.yml`) to generate `AIsleList.xcodeproj`. Run `cd AIsleList && xcodegen generate` after adding/removing Swift files.
-- **Data**: SwiftData with `ListSession` and `GroceryItem` @Model classes. ModelContainer created explicitly in `AIsleListApp.swift`.
-- **Services**: Protocol abstraction layer (`GroceryAnalysisService`) with `DirectAnthropicService` (BYOK) implementation. Designed for swapping to Supabase in Phase 2.
-- **Navigation**: Enum-based `Route` with `@Observable AppViewModel` state machine (mirrors React's App.tsx flow).
-- **Plans/research**: `thoughts/prds/swiftui-migration-plan.md` has the full implementation plan. `thoughts/swiftui-architecture-research.md` has patterns and code examples.
+SwiftUI migration of the web app. Lives in `AIsleList/` directory. Uses xcodegen (`project.yml`) to generate the Xcode project -- run `cd AIsleList && xcodegen generate` after adding/removing Swift files.
 
 ## Agent Notes
 
-`thoughts/agent-notes/` has structured notes for agent context (project overview, iOS structure, migration status, gotchas, next steps). These docs are kept up-to-date automatically in the background -- read them for current project state before starting work.
+`thoughts/agent-notes/` has structured notes kept up-to-date automatically in the background. Read them for current project state before starting work. Covers: project overview, iOS app structure, migration status, gotchas/lessons learned, and next steps.
 
 ## Gotchas
 
-- **SwiftData + CloudKit**: Do NOT add CloudKit entitlements until the CloudKit container is actually created in Apple Developer portal. Unconfigured CloudKit entitlements cause SwiftData to silently discard all writes -- inserts and saves appear to succeed but data is never persisted.
-- **SwiftData persistence**: Use explicit `ModelContainer` init with `fatalError` on failure instead of the `.modelContainer(for:)` convenience modifier, which hides initialization errors.
-- **Swift abs() overflow**: Never use `abs()` on hash values or any `Int` that could be `Int.min` -- it causes a fatal overflow. Use `.magnitude` instead (returns `UInt`, safe for all values).
 - **Tailwind v4**: Uses CSS-based config in `src/index.css`, not `tailwind.config.js`
-- **Browser API calls**: Uses `dangerouslyAllowBrowser: true` intentionally - API key is user-provided and stored in localStorage
-- **PWA**: Configured via `vite-plugin-pwa` in `vite.config.ts` - service worker auto-generated on build
-- **Dark mode**: Uses Tailwind's `dark:` variant with class strategy; state persisted to localStorage
-- **List history storage**: Uses separate localStorage keys for efficiency:
-  - `grocery_sessions_index` - Lightweight index of all sessions
-  - `grocery_session_{id}` - Full session data (items only)
-  - `grocery_session_image_{id}` - Compressed thumbnail (~200KB max)
-- **Image compression**: Images are resized to 400px width and JPEG compressed before storage to allow 20+ lists in localStorage
+- **Browser API calls**: Uses `dangerouslyAllowBrowser: true` intentionally -- API key is user-provided and stored in localStorage
+- See `thoughts/agent-notes/gotchas-and-lessons.md` for iOS/SwiftData gotchas
