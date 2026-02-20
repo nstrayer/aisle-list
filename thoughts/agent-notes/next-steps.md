@@ -9,18 +9,16 @@ Phase 2 code is written. These manual steps are needed to activate it:
 3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list`
 4. **Set edge function secret**: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
 5. **Enable Apple auth** in Supabase dashboard (Authentication > Providers > Apple)
-6. **Add to Info.plist** (or project.yml info properties):
-   - `SUPABASE_URL`: your project URL (e.g., `https://xxxx.supabase.co`)
-   - `SUPABASE_ANON_KEY`: your project's anon/public key
+6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a): `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `project.yml` info properties
 7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
 
-Until these steps are done, the app falls back to BYOK mode automatically.
+Until steps 1-5 and 7 are done, the app falls back to BYOK mode automatically.
 
 ## Remaining Phase 2 Cleanup
 
 After Supabase is verified working:
 - Delete BYOK files (DirectAnthropicService, ApiKeyInputView, KeychainHelper)
-- Update SettingsView: remove API Key section, add Account section (email, sign out)
+- ~~Update SettingsView~~ -- DONE (commit 588b6d0): dual-mode with Account section (auth) and API Key section (BYOK)
 - Show remaining free scans on upload screen
 
 ## Still Pending: Task 1.15 (CloudKit)

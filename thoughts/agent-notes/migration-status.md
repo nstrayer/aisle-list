@@ -80,10 +80,9 @@ These were addressed in a prior commit:
 
 Several robustness improvements across the Supabase integration:
 
-**SupabaseAuthService -- failable init + computed access token**:
+**SupabaseAuthService -- failable init + stored access token**:
 - `init()` changed to `init?(urlString:anonKey:)` -- returns nil instead of `fatalError` when URL/key invalid. Callers (`AIsleListApp.setupServices()`) use `guard let` and fall back to BYOK.
-- `accessToken` changed from stored `private(set) var` to a computed property reading `client.auth.currentSession.accessToken`. Avoids stale tokens -- the Supabase SDK handles refresh internally.
-- Manual `accessToken = ...` / `accessToken = nil` assignments removed from `signInWithApple`, `restoreSession`, `signOut`.
+- `accessToken` is a stored `private(set) var String?`, set explicitly in `signInWithApple` (from returned session), `restoreSession` (from restored session), and `signOut` (set to nil). This was briefly a computed property reading `client.auth.currentSession?.accessToken`, but that caused timing issues where the token was unavailable immediately after sign-in/restore (commit 2d4a2b6 reverted to stored property).
 
 **AIsleListApp.setupServices() -- guard-let early return**:
 - Uses `guard let` with new failable `SupabaseAuthService(urlString:anonKey:)`. Returns early to BYOK mode on failure instead of nested if-let.
@@ -118,17 +117,56 @@ Before the Supabase path works, you need to:
 3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list`
 4. **Set edge function secret**: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
 5. **Enable Apple auth** in Supabase dashboard (Authentication > Providers > Apple)
-6. **Add to Info.plist** (or project.yml info properties):
-   - `SUPABASE_URL`: your project URL (e.g., `https://xxxx.supabase.co`)
-   - `SUPABASE_ANON_KEY`: your project's anon/public key
+6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a): `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `project.yml` info properties
 7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
 
 Until these steps are done, the app falls back to BYOK mode automatically.
 
+### Auth Routing Race + Validation Fix (commit 7891258)
+
+Two fixes applied:
+
+1. **ContentView auth mode routing race**: `authService` is set async in `.task`, so `onAppear` can fire before `isAuthMode` is true. Added `.onChange(of: isAuthMode)` to catch late transitions and navigate from `.apiKey` to `.upload` when auth mode activates.
+
+2. **Edge function `sanity_check` item validation**: `validatePayload()` now validates each item in the `sanity_check` items array has string `id`, `name`, and `category` fields (previously only checked for non-empty array). Prevents malformed payloads from reaching the Anthropic API.
+
+### Supabase SDK Internal Property Fix (commit 281dcd5)
+
+`SupabaseAnalysisService` was accessing `authService.supabaseClient.supabaseURL` -- an internal property of the Supabase Swift SDK, not part of the public API. Fixed by:
+- `SupabaseAuthService` now stores `baseURL` during init and exposes `functionsBaseURL` (computed: `baseURL.appendingPathComponent("functions/v1")`)
+- `SupabaseAnalysisService` uses `authService.functionsBaseURL.appendingPathComponent("analyze-grocery-list")` instead of reaching through to `SupabaseClient`
+- The `supabaseClient` accessor on `SupabaseAuthService` was removed entirely -- no external code should access the raw client
+
+### Optional Session Access Fix (commit e93a833, superseded by 2d4a2b6)
+
+`SupabaseAuthService.accessToken` was a computed property accessing `client.auth.currentSession.accessToken` without optional chaining. Fixed with `?.` in e93a833. Later, commit 2d4a2b6 changed `accessToken` from computed to a stored property set explicitly on sign-in/restore/sign-out, making this fix moot (the computed property no longer exists).
+
+### Sign in with Apple Entitlement + Supabase Config (commit 424e17a)
+
+Added the Sign in with Apple entitlement via `project.yml`:
+- `AIsleList.entitlements` now contains `com.apple.developer.applesignin` with `Default` value
+- `project.yml` entitlements section updated with `properties` block to declare the entitlement (in addition to the `path` reference)
+- `SUPABASE_URL` and `SUPABASE_ANON_KEY` added directly to `project.yml` info properties, so they are baked into Info.plist on `xcodegen generate`
+
+This means manual step 6 from the "Manual Steps Required" list is now done -- Supabase credentials are committed in `project.yml`.
+
+### Stored Access Token Fix (commit 2d4a2b6)
+
+Reverted `accessToken` from a computed property back to a stored `private(set) var String?`. The computed approach (reading `client.auth.currentSession?.accessToken`) had timing issues -- the token could be unavailable immediately after sign-in or session restore, before the SDK's internal state settled. Now set explicitly from the session response in `signInWithApple`, `restoreSession`, and cleared in `signOut`.
+
+### SettingsView Dual-Mode Update (commit 588b6d0)
+
+`SettingsView` now supports both auth and BYOK modes:
+- **Auth mode** (`isAuthMode` derived from `authService` environment): shows Account section with signed-in user ID prefix and a "Sign Out" button that calls `authService?.signOut()` and dismisses the view.
+- **BYOK mode** (no auth service): shows the original API Key section (masked key display, change key, remove key).
+- Mode detection uses `@Environment(\.authService)` -- same pattern as `ContentView`.
+- Extracted `accountSection` and `apiKeySection` as `@ViewBuilder` computed properties for clarity.
+- Only loads the masked API key on appear when in BYOK mode.
+- Removed `#Preview` block.
+
 ### Not Yet Done
 
 - Delete BYOK files (DirectAnthropicService, ApiKeyInputView, KeychainHelper) -- deferred until Supabase is verified working
-- Update SettingsView: remove API Key section, add Account section (email, sign out)
 - Show remaining free scans on upload screen
 
 ## Phase 3: Subscriptions + App Store -- NOT STARTED

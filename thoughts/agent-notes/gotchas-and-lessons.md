@@ -7,7 +7,7 @@
 Unconfigured CloudKit entitlements cause SwiftData to silently discard all writes. Inserts and saves appear to succeed (no errors thrown), but data is never actually persisted. This was discovered and fixed in commit `f3ad930`.
 
 The fix was to:
-1. Remove CloudKit entitlements from `AIsleList.entitlements` (now empty)
+1. Remove CloudKit entitlements from `AIsleList.entitlements` (CloudKit removed; file now only has Sign in with Apple entitlement)
 2. Use explicit `ModelContainer` init with `fatalError` on failure instead of the `.modelContainer(for:)` SwiftUI modifier (which hides initialization errors)
 
 ## CloudKit Model Compatibility
@@ -77,6 +77,20 @@ cd AIsleList && xcodegen generate
 
 The generated `.xcodeproj` should not be committed to git (it's in the repo currently but `project.yml` is the source of truth).
 
+## xcodegen Entitlements: path + properties
+
+When declaring entitlements in `project.yml`, you need both the `path` (pointing to the `.entitlements` file) and `properties` (declaring the entitlement values). The `path` tells Xcode where the entitlements file lives, and `properties` ensures xcodegen writes the correct key-value pairs into it. Example for Sign in with Apple:
+
+```yaml
+entitlements:
+  path: Resources/AIsleList.entitlements
+  properties:
+    com.apple.developer.applesignin:
+      - Default
+```
+
+Without the `properties` block, the entitlements file may remain empty even if the file exists at the path. Commit 424e17a added this for Sign in with Apple.
+
 ## Web App Gotchas (Still Relevant)
 
 - **Tailwind v4**: CSS-based config in `src/index.css`, NOT `tailwind.config.js`
@@ -99,7 +113,7 @@ The edge function (`supabase/functions/analyze-grocery-list/index.ts`) runs on D
 Key patterns:
 - **CORS**: `CORS_HEADERS` constant applied to all responses via `jsonResponse()` helper. `OPTIONS` preflight returns empty body with CORS headers.
 - **Auth**: Reads `Authorization` header, creates Supabase client with it, calls `getUser()` to validate JWT
-- **Payload validation**: `validatePayload()` checks action type, required fields (imageBase64, mediaType whitelist for analyze; non-empty items array for sanity_check). Returns 400 on invalid.
+- **Payload validation**: `validatePayload()` checks action type, required fields (imageBase64, mediaType whitelist for analyze; items array for sanity_check with per-item field validation). Returns 400 on invalid.
 - **Scan limits**: Checks `subscriptions` table first (active/grace_period), then counts `scan_usage` rows for current calendar month. Free tier = 3 scans/month. Usage recorded after successful analysis only.
 - **Error codes**: Returns `403` with `error: "scan_limit_reached"` and metadata (`scansUsed`, `scanLimit`, `upgradeRequired`) for client-side handling
 - **Error hygiene**: Internal errors (Anthropic failures, exceptions) return generic "AI analysis failed" (502). Details logged server-side via `console.error`, never sent to client.
@@ -113,6 +127,10 @@ Key patterns:
 The `onAppear` block handles both modes:
 - **Auth mode**: if route is `.apiKey`, navigates to `.upload` (the auth gate in the view builder handles sign-in)
 - **BYOK mode**: if a saved API key exists in Keychain, navigates to `.upload`
+
+### Auth Mode Routing Race (commit 7891258)
+
+`authService` is set asynchronously in a `.task` modifier on `AIsleListApp`, so `onAppear` in `ContentView` can fire before `isAuthMode` becomes true. This caused the app to stay on the `.apiKey` route in auth mode. Fixed by adding `.onChange(of: isAuthMode)` to catch late transitions -- when `isAuthMode` flips to true and route is still `.apiKey`, it navigates to `.upload`.
 
 ## Sign in with Apple + Supabase
 
@@ -132,9 +150,13 @@ Supabase availability is detected at runtime by checking both `SUPABASE_URL` and
 
 `SupabaseAuthService` uses `init?(urlString:anonKey:)` returning nil instead of `fatalError` when configuration is invalid. This lets the caller (`setupServices()`) gracefully fall back to BYOK mode. Prefer failable inits for services that depend on optional runtime configuration.
 
-## Computed Access Token vs Stored Property
+## Stored Access Token (commit 2d4a2b6)
 
-`SupabaseAuthService.accessToken` is a computed property (`try? client.auth.currentSession.accessToken`) rather than a stored `private(set) var`. The Supabase SDK manages token refresh internally, so reading from the session always returns the latest valid token. Storing the token as a property risks serving stale/expired tokens after SDK-managed refresh.
+`SupabaseAuthService.accessToken` is a stored `private(set) var String?`, set explicitly during `signInWithApple` (from the returned session), `restoreSession` (from the restored session), and `signOut` (set to nil).
+
+Previously this was a computed property reading `client.auth.currentSession?.accessToken`, but that approach caused timing issues -- the token could be nil or stale when read immediately after sign-in/restore, before the SDK's internal state had fully settled. Storing the token explicitly from the session response at the point of sign-in/restore guarantees it's available immediately.
+
+The trade-off: a stored token won't auto-update if the Supabase SDK silently refreshes it in the background. If token expiry becomes an issue, consider re-reading from the session on each API call or listening for auth state change events.
 
 ## Record Usage After Success, Not Before
 
@@ -143,6 +165,18 @@ In the edge function, scan usage is recorded in the database only after a succes
 ## Don't Leak Internal Errors to Clients
 
 The edge function returns generic "AI analysis failed" (502) for all Anthropic-side errors instead of forwarding raw error text. Internal details are logged via `console.error` for debugging. This prevents leaking API keys, internal service names, or error formats to clients.
+
+## Validate Nested Object Fields, Not Just Array Shape (commit 7891258)
+
+The edge function's `validatePayload()` originally only checked that `sanity_check` items was a non-empty array (`Array.isArray(obj.items) && obj.items.length > 0`). This allowed malformed items (missing `id`, `name`, or `category` fields) to reach the Anthropic API and cause downstream failures. Now validates each item has string `id`, `name`, and `category` using `.every()`. General lesson: when validating arrays of objects, validate individual item structure, not just array presence.
+
+## Don't Access Internal SDK Properties (commit 281dcd5)
+
+`SupabaseClient.supabaseURL` is an internal property of the Supabase Swift SDK -- not part of the public API. Accessing it compiled but could break on SDK updates. Instead, store the base URL yourself during init and derive any needed URLs from it.
+
+Pattern used: `SupabaseAuthService` stores `baseURL` (the raw URL passed to `SupabaseClient` init) and exposes a `functionsBaseURL` computed property (`baseURL.appendingPathComponent("functions/v1")`). `SupabaseAnalysisService` uses `authService.functionsBaseURL` instead of reaching through the client.
+
+General lesson: when wrapping a third-party SDK, store configuration values you need rather than reaching into the SDK's internal state. This keeps your code resilient to SDK version changes.
 
 ## Anthropic API Integration
 

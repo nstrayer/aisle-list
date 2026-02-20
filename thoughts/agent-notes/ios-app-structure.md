@@ -35,7 +35,7 @@ AIsleList/
       HistoryView.swift      # Sheet with session list, swipe actions
       SessionRow.swift       # Individual session in history
     Settings/
-      SettingsView.swift     # Dark mode, API key management, about
+      SettingsView.swift     # Dark mode, dual-mode (Account sign-out for auth / API key mgmt for BYOK), about
   ViewModels/
     AppViewModel.swift       # @Observable state machine (mirrors React App.tsx)
   Services/
@@ -44,8 +44,8 @@ AIsleList/
       AuthService.swift             # Protocol: AuthState enum, signInWithApple, restoreSession, signOut
     Implementations/
       DirectAnthropicService.swift  # BYOK: raw URLSession to Anthropic API
-      SupabaseAuthService.swift     # Failable init?(urlString:anonKey:), Sign in with Apple via Supabase, computed accessToken
-      SupabaseAnalysisService.swift # Calls edge function, handles scan limit errors
+      SupabaseAuthService.swift     # Failable init?(urlString:anonKey:), stores baseURL, Sign in with Apple via Supabase, stored accessToken (set on sign-in/restore/sign-out), functionsBaseURL
+      SupabaseAnalysisService.swift # Calls edge function via authService.functionsBaseURL, handles scan limit errors
     Environment/
       ServiceEnvironmentKeys.swift  # SwiftUI environment injection (analysisService + authService)
   Utilities/
@@ -55,7 +55,7 @@ AIsleList/
     NetworkMonitor.swift     # NWPathMonitor wrapper, @Observable
   Resources/
     Info.plist               # Bundle config, camera/photo usage, portrait-only, launch screen, optional SUPABASE_URL/SUPABASE_ANON_KEY
-    AIsleList.entitlements   # Empty (CloudKit removed until container created)
+    AIsleList.entitlements   # Sign in with Apple entitlement (CloudKit removed until container created)
     XCODE_SETUP.md           # Setup instructions for Xcode project
 ```
 
