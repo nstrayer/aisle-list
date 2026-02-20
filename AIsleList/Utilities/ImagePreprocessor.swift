@@ -64,7 +64,9 @@ struct ImagePreprocessor {
         let targetHeight = round(targetWidth * aspectRatio)
         let targetSize = CGSize(width: targetWidth, height: targetHeight)
 
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         let thumbnailImage = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
@@ -89,7 +91,9 @@ struct ImagePreprocessor {
         let targetHeight = round(height * scale)
         let targetSize = CGSize(width: targetWidth, height: targetHeight)
 
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }

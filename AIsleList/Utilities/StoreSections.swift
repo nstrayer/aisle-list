@@ -205,10 +205,10 @@ enum StoreSections {
         if let style = sectionStyles[name] {
             return style
         }
-        // Deterministic hash based on char codes -- mirrors the React implementation
+        // Deterministic hash based on UTF-16 code units -- mirrors JS charCodeAt()
         var hash = 0
-        for char in name.unicodeScalars {
-            hash = (hash &+ Int(char.value)) &* 31
+        for unit in name.utf16 {
+            hash = (hash &+ Int(unit)) &* 31
         }
         let index = abs(hash) % dynamicSectionColors.count
         return dynamicSectionColors[index]
@@ -219,8 +219,9 @@ enum StoreSections {
     static func categorizeItem(_ name: String) -> String {
         let lowerItem = name.lowercased()
 
-        for (section, keywords) in storeSections {
+        for section in sectionOrder {
             if section == "Other" { continue }
+            guard let keywords = storeSections[section] else { continue }
             for keyword in keywords {
                 if lowerItem.contains(keyword) {
                     return section

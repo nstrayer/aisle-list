@@ -136,7 +136,7 @@ struct GroceryItemRow: View {
 
     private func commitEdit() {
         let trimmed = editValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty {
+        if !trimmed.isEmpty && trimmed != item.name {
             onRename(trimmed)
         }
         isEditing = false

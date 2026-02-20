@@ -62,8 +62,9 @@ struct HistoryView: View {
             )) {
                 TextField("List name", text: $renameText)
                 Button("Save") {
-                    if let session = sessionToRename, !renameText.trimmingCharacters(in: .whitespaces).isEmpty {
-                        session.name = renameText.trimmingCharacters(in: .whitespaces)
+                    let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let session = sessionToRename, !trimmed.isEmpty {
+                        session.name = trimmed
                         session.updatedAt = Date()
                     }
                     sessionToRename = nil

@@ -29,7 +29,7 @@ struct ApiKeyInputView: View {
                     .padding(.horizontal, 32)
 
                 Button {
-                    onSave(apiKey)
+                    onSave(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
                 } label: {
                     Text("Save & Continue")
                         .fontWeight(.semibold)
@@ -38,7 +38,7 @@ struct ApiKeyInputView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
-                .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .padding(.horizontal, 32)
             }
 

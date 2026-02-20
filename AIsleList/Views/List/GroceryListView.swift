@@ -129,11 +129,11 @@ struct GroceryListView: View {
     }
 
     private func allSectionNames(from groups: [SectionGroup]) -> [String] {
-        let present = Set(groups.map(\.section))
         var names = StoreSections.sectionOrder.filter { $0 != "Other" }
-        for s in present where !names.contains(s) && s != "Other" {
-            names.append(s)
-        }
+        let dynamicNames = groups.map(\.section)
+            .filter { !StoreSections.sectionOrder.contains($0) }
+            .sorted()
+        names.append(contentsOf: dynamicNames)
         names.append("Other")
         return names
     }
@@ -191,10 +191,11 @@ struct GroceryListView: View {
     }
 
     private func addItem() {
+        let maxOrder = session.items.map(\.sortOrder).max() ?? -1
         let newItem = GroceryItem(
             name: "New item",
             category: "Other",
-            sortOrder: session.items.count
+            sortOrder: maxOrder + 1
         )
         newItem.session = session
         modelContext.insert(newItem)

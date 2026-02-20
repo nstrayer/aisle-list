@@ -55,9 +55,11 @@ struct SettingsView: View {
             .alert("Change API Key", isPresented: $showChangeKey) {
                 SecureField("New API Key", text: $newKey)
                 Button("Save") {
-                    if let data = newKey.data(using: .utf8), !newKey.isEmpty {
-                        _ = KeychainHelper.save(key: keychainKey, data: data)
-                        maskedKey = maskKey(newKey)
+                    let trimmed = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let data = trimmed.data(using: .utf8), !trimmed.isEmpty {
+                        if KeychainHelper.save(key: keychainKey, data: data) {
+                            maskedKey = maskKey(trimmed)
+                        }
                     }
                 }
                 Button("Cancel", role: .cancel) {}
