@@ -54,7 +54,7 @@ AIsleList/
     KeychainHelper.swift     # Save/load/delete from iOS Keychain
     NetworkMonitor.swift     # NWPathMonitor wrapper, @Observable
   Resources/
-    Info.plist               # Bundle config, camera/photo usage, portrait-only, launch screen
+    Info.plist               # Bundle config, camera/photo usage, portrait-only, launch screen, optional SUPABASE_URL/SUPABASE_ANON_KEY
     AIsleList.entitlements   # Empty (CloudKit removed until container created)
     XCODE_SETUP.md           # Setup instructions for Xcode project
 ```

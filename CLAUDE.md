@@ -4,47 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Smart Grocery List Organizer - a web app that uses Claude AI to read handwritten grocery lists from photos. Includes a clarification step to identify different sections (store-specific lists, meal plans, crossed-out items) and lets users choose what to include.
+**AIsle List** -- a smart grocery list app that uses Claude AI to read handwritten grocery lists from photos. Includes a clarification step to identify different sections (store-specific lists, meal plans, crossed-out items) and lets users choose what to include. Has a web app (original), native iOS app (in progress), and Supabase backend for auth + API proxying.
 
 ## Tech Stack
 
-- **Framework:** Vite + React
-- **AI:** Anthropic SDK (direct browser calls)
-- **Styling:** Tailwind CSS v4
-- **Validation:** Zod for structured outputs
-- **Language:** TypeScript
+- **Web:** Vite + React + TypeScript, Tailwind CSS v4, Zod, Anthropic SDK (BYOK)
+- **iOS:** SwiftUI, SwiftData, Supabase Swift SDK (on `feature/swiftui-migration` branch)
+- **Backend:** Supabase (Postgres + Edge Functions on Deno), Sign in with Apple
 
 ## Project Structure
 
 ```
 kroger-list/
-  index.html           # Entry point with meta tags and font links
-  vite.config.ts       # Vite configuration
-  src/
-    main.tsx           # React mount point
-    App.tsx            # Main app (upload, clarify, list screens)
-    index.css          # Tailwind imports + theme
-    components/
-      AnimatedTitle.tsx  # Rough-notation animated title
-      ApiKeyInput.tsx    # API key entry form
-      ClarifyScreen.tsx  # Section selection UI
-      DarkModeToggle.tsx # Theme toggle button
-      GroceryList.tsx    # Final checklist by Kroger section
-      HistoryPanel.tsx   # Slide-out panel for past lists
-      ImageThumbnail.tsx # Clickable thumbnail with modal
-      ImageUpload.tsx    # Drag-drop or click to upload
-      OfflineBanner.tsx  # PWA offline indicator
-      SwipeableItem.tsx  # Swipe-to-delete list item
-    hooks/
-      useDarkMode.ts     # Dark mode state + localStorage sync
-      useOnlineStatus.ts # Network connectivity hook
-    lib/
-      anthropic-client.ts # Direct browser calls to Anthropic API
-      schemas.ts          # Zod schemas for AI output
-      storage.ts          # Session management, image compression, localStorage
-      store-sections.ts   # STORE_SECTIONS mapping + categorizeItem()
-      types.ts            # TypeScript interfaces (GroceryItem, ListSession, etc.)
-  public/               # Static assets
+  src/                   # Web app (Vite + React)
+    main.tsx             # React mount point
+    App.tsx              # Main app (upload, clarify, list screens)
+    index.css            # Tailwind imports + theme
+    components/          # UI components (upload, clarify, list, history, etc.)
+    hooks/               # useDarkMode, useOnlineStatus
+    lib/                 # anthropic-client, schemas, storage, store-sections, types
+  AIsleList/             # iOS app (SwiftUI) -- see agent-notes for full structure
+    Models/              # SwiftData models
+    Views/               # SwiftUI views (Auth, Upload, Clarify, List, History, Settings)
+    Services/            # Protocol-based services (analysis, auth) + implementations
+    Utilities/           # StoreSections, ImagePreprocessor, KeychainHelper
+    project.yml          # xcodegen config (source of truth for .xcodeproj)
+  supabase/              # Supabase backend
+    migrations/          # 001_initial.sql: scan_usage, subscriptions tables (RLS)
+    functions/           # analyze-grocery-list edge function (Deno, Anthropic proxy)
+    config.toml          # Local dev config
+  public/                # Static web assets
 ```
 
 ## Running the App
@@ -89,7 +78,11 @@ Edit the `STORE_SECTIONS` object in `src/lib/store-sections.ts` to add new secti
 
 ## iOS App (AIsleList/)
 
-SwiftUI migration of the web app. Lives in `AIsleList/` directory. Uses xcodegen (`project.yml`) to generate the Xcode project -- run `cd AIsleList && xcodegen generate` after adding/removing Swift files.
+SwiftUI migration of the web app. Lives in `AIsleList/` directory. Uses xcodegen (`project.yml`) to generate the Xcode project -- run `cd AIsleList && xcodegen generate` after adding/removing Swift files. Supports dual-mode: Supabase auth (Sign in with Apple + edge function) or BYOK fallback (direct Anthropic API calls). Mode is determined by presence of `SUPABASE_URL` in Info.plist.
+
+## Supabase Backend (supabase/)
+
+Edge function proxies Anthropic API calls with JWT auth and scan limits (3 free/month). Database schema has `scan_usage` and `subscriptions` tables with row-level security. See `thoughts/agent-notes/gotchas-and-lessons.md` for edge function architecture details.
 
 ## Agent Notes
 
