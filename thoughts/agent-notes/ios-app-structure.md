@@ -44,7 +44,7 @@ AIsleList/
       AuthService.swift             # Protocol: AuthState enum, signInWithApple, restoreSession, signOut
     Implementations/
       DirectAnthropicService.swift  # BYOK: raw URLSession to Anthropic API
-      SupabaseAuthService.swift     # Sign in with Apple via Supabase, session management
+      SupabaseAuthService.swift     # Failable init?(urlString:anonKey:), Sign in with Apple via Supabase, computed accessToken
       SupabaseAnalysisService.swift # Calls edge function, handles scan limit errors
     Environment/
       ServiceEnvironmentKeys.swift  # SwiftUI environment injection (analysisService + authService)
@@ -77,11 +77,13 @@ Enum-based routing via `Route`:
 - `.list(ListSession)` -- show grocery checklist
 
 `ContentView` has a dual-mode architecture:
-- **Auth mode** (Supabase configured): `authModeContent` checks `AuthState` -- shows `SignInView` when signed out, `appContent` when signed in
-- **BYOK mode** (no Supabase): `byokModeContent` shows `ApiKeyInputView` for `.apiKey` route, then `appContent`
+- **Auth mode** (Supabase configured): `authModeContent` checks `AuthState` -- shows `SignInView` when signed out, `appContent` when signed in. On appear, navigates from `.apiKey` to `.upload` (auth gate handles sign-in).
+- **BYOK mode** (no Supabase): `byokModeContent` shows `ApiKeyInputView` for `.apiKey` route, then `appContent`. On appear, auto-navigates to `.upload` if saved key exists.
 - **Shared `appContent`**: the upload/clarify/list flow, used by both modes
 
 Service resolution: `resolveAnalysisService()` prefers injected `SupabaseAnalysisService` (via environment), falls back to `DirectAnthropicService` (BYOK via Keychain).
+
+Mode detection: `AIsleListApp.setupServices()` tries `SupabaseAuthService(urlString:anonKey:)` with values from Info.plist. If init returns nil (missing/invalid URL or empty anon key), services stay nil and BYOK mode activates.
 
 `AppViewModel` is an `@Observable` class that manages `currentRoute` and orchestrates the flow between screens.
 

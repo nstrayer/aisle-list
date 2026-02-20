@@ -97,10 +97,12 @@ The edge function (`supabase/functions/analyze-grocery-list/index.ts`) runs on D
 - `sanity_check`: sends item list to Haiku for category correction
 
 Key patterns:
-- **CORS**: Must handle `OPTIONS` preflight with `Access-Control-Allow-*` headers
+- **CORS**: `CORS_HEADERS` constant applied to all responses via `jsonResponse()` helper. `OPTIONS` preflight returns empty body with CORS headers.
 - **Auth**: Reads `Authorization` header, creates Supabase client with it, calls `getUser()` to validate JWT
-- **Scan limits**: Checks `subscriptions` table first (active/grace_period), then counts `scan_usage` rows for current calendar month. Free tier = 3 scans/month.
+- **Payload validation**: `validatePayload()` checks action type, required fields (imageBase64, mediaType whitelist for analyze; non-empty items array for sanity_check). Returns 400 on invalid.
+- **Scan limits**: Checks `subscriptions` table first (active/grace_period), then counts `scan_usage` rows for current calendar month. Free tier = 3 scans/month. Usage recorded after successful analysis only.
 - **Error codes**: Returns `403` with `error: "scan_limit_reached"` and metadata (`scansUsed`, `scanLimit`, `upgradeRequired`) for client-side handling
+- **Error hygiene**: Internal errors (Anthropic failures, exceptions) return generic "AI analysis failed" (502). Details logged server-side via `console.error`, never sent to client.
 
 ## Dual-Mode ContentView Pattern
 
@@ -108,7 +110,9 @@ Key patterns:
 - `authModeContent`: checks `AuthState` enum (`.unknown` -> loading spinner, `.signedOut` -> `SignInView`, `.signedIn` -> `appContent`)
 - `byokModeContent`: checks route (`.apiKey` -> `ApiKeyInputView`, default -> `appContent`)
 
-The `onAppear` guard `if !isAuthMode` prevents the BYOK key check from running in auth mode.
+The `onAppear` block handles both modes:
+- **Auth mode**: if route is `.apiKey`, navigates to `.upload` (the auth gate in the view builder handles sign-in)
+- **BYOK mode**: if a saved API key exists in Keychain, navigates to `.upload`
 
 ## Sign in with Apple + Supabase
 
@@ -122,7 +126,23 @@ Important: user cancellation (`ASAuthorizationError.canceled`) should not show a
 
 ## Info.plist-Based Feature Detection
 
-Supabase availability is detected at runtime by checking `Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL")`. If the key is missing or empty, the app runs in BYOK mode. This allows the same binary to work with or without Supabase configured.
+Supabase availability is detected at runtime by checking both `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Info.plist. Both must be present and valid (URL must parse, anon key must be non-empty) for auth mode. If either is missing or invalid, the app runs in BYOK mode. Detection happens in `AIsleListApp.setupServices()` via the failable `SupabaseAuthService(urlString:anonKey:)` init.
+
+## Failable Init Over fatalError for Service Setup
+
+`SupabaseAuthService` uses `init?(urlString:anonKey:)` returning nil instead of `fatalError` when configuration is invalid. This lets the caller (`setupServices()`) gracefully fall back to BYOK mode. Prefer failable inits for services that depend on optional runtime configuration.
+
+## Computed Access Token vs Stored Property
+
+`SupabaseAuthService.accessToken` is a computed property (`try? client.auth.currentSession.accessToken`) rather than a stored `private(set) var`. The Supabase SDK manages token refresh internally, so reading from the session always returns the latest valid token. Storing the token as a property risks serving stale/expired tokens after SDK-managed refresh.
+
+## Record Usage After Success, Not Before
+
+In the edge function, scan usage is recorded in the database only after a successful Anthropic API response. Previously it was recorded before the API call, meaning failed analyses still counted against the user's free tier limit. Always record consumption after the operation succeeds.
+
+## Don't Leak Internal Errors to Clients
+
+The edge function returns generic "AI analysis failed" (502) for all Anthropic-side errors instead of forwarding raw error text. Internal details are logged via `console.error` for debugging. This prevents leaking API keys, internal service names, or error formats to clients.
 
 ## Anthropic API Integration
 

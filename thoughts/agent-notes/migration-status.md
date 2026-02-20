@@ -23,9 +23,9 @@ Branch: `feature/swiftui-migration`
 | 1.13 | App ViewModel + navigation | `ViewModels/AppViewModel.swift`, `ContentView.swift` |
 | 1.14 | Network monitor | `Utilities/NetworkMonitor.swift` |
 
-### Info.plist Expansion (uncommitted)
+### Info.plist Configuration
 
-Info.plist was expanded from just camera/photo usage descriptions to full bundle configuration: `CFBundleDisplayName` ("AIsle List"), version 1.0.0 (build 1), portrait-only orientation (`UISupportedInterfaceOrientations`), and empty `UILaunchScreen`. This change is staged but not yet committed.
+Info.plist expanded from camera/photo usage descriptions to full bundle configuration: `CFBundleDisplayName` ("AIsle List"), version 1.0.0 (build 1), portrait-only orientation (`UISupportedInterfaceOrientations`), empty `UILaunchScreen`, and optional `SUPABASE_URL`/`SUPABASE_ANON_KEY` keys for dual-mode detection.
 
 ### Documentation Updates
 
@@ -34,6 +34,8 @@ Info.plist was expanded from just camera/photo usage descriptions to full bundle
 - Added top-level "Agent Notes" section pointing to `thoughts/agent-notes/` (commits b55afa3, dfe0bd2)
 - Created agent-notes files: project-overview, ios-app-structure, migration-status, gotchas-and-lessons, next-steps (commit b93a2e8)
 - Slimmed CLAUDE.md to defer detail to agent-notes (commit 2d3d740)
+- Updated CLAUDE.md: project overview to "AIsle List" with three codebases, condensed tech stack (Web/iOS/Backend), added Supabase Backend section, expanded iOS section with dual-mode info (commit f009e49)
+- Updated agent notes for Supabase auth + analysis integration (commit 18fa2a7)
 
 ### CloudKit Compatibility Fix
 
@@ -71,6 +73,34 @@ These were addressed in a prior commit:
 | 2.3 | Auth service | `Services/Protocols/AuthService.swift` (AuthState enum + protocol), `Services/Implementations/SupabaseAuthService.swift` (Sign in with Apple via Supabase), `Views/Auth/SignInView.swift` (Apple sign-in UI + nonce handling) |
 | 2.4 | Supabase analysis service | `Services/Implementations/SupabaseAnalysisService.swift` (calls edge function, handles scan limit errors via `SupabaseAnalysisError`) |
 | 2.5 | Integration | `AIsleListApp.swift` (auth/analysis service setup + environment injection), `ContentView.swift` (dual-mode: authModeContent vs byokModeContent), `ServiceEnvironmentKeys.swift` (added AuthServiceKey). BYOK kept as fallback when Supabase not configured via Info.plist detection. |
+
+### Phase 2 Hardening (latest changes)
+
+Several robustness improvements across the Supabase integration:
+
+**SupabaseAuthService -- failable init + computed access token**:
+- `init()` changed to `init?(urlString:anonKey:)` -- returns nil instead of `fatalError` when URL/key invalid. Callers (`AIsleListApp.setupServices()`) use `guard let` and fall back to BYOK.
+- `accessToken` changed from stored `private(set) var` to a computed property reading `client.auth.currentSession.accessToken`. Avoids stale tokens -- the Supabase SDK handles refresh internally.
+- Manual `accessToken = ...` / `accessToken = nil` assignments removed from `signInWithApple`, `restoreSession`, `signOut`.
+
+**AIsleListApp.setupServices() -- guard-let early return**:
+- Uses `guard let` with new failable `SupabaseAuthService(urlString:anonKey:)`. Returns early to BYOK mode on failure instead of nested if-let.
+- Both `SUPABASE_URL` and `SUPABASE_ANON_KEY` must be present (previously only URL was checked).
+
+**ContentView.onAppear -- auth mode routing fix**:
+- In auth mode, if route is `.apiKey` on appear, immediately navigate to `.upload` (the auth gate in the view builder handles sign-in display).
+- Previously only handled BYOK path, causing auth mode to get stuck on the API key screen.
+
+**SignInView -- nonce charset bug fix**:
+- Charset string was missing 'W' (`...STUVXYZ...` -> `...STUVWXYZ...`). This slightly reduced entropy of generated nonces.
+
+**Edge function hardening**:
+- Extracted `CORS_HEADERS` constant and `jsonResponse()` helper to reduce response boilerplate.
+- Added `validatePayload()` function for explicit request validation (action, imageBase64, mediaType whitelist, items array).
+- Scan usage recording moved to after successful Anthropic response (was before -- failed scans no longer count against the user).
+- Error responses no longer leak internal details (Anthropic error text). Uses generic "AI analysis failed" with 502 status.
+- Added JSON body parsing error handling (returns 400 on malformed JSON).
+- Internal errors logged via `console.error` instead of returned to client.
 
 ### New Dependencies
 
