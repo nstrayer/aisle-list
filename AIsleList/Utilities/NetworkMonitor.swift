@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Observation
+import SwiftUI
 
 @Observable
 final class NetworkMonitor {

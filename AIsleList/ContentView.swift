@@ -57,12 +57,23 @@ struct ContentView: View {
 
                 case .list:
                     if let session = viewModel.currentSession {
-                        GroceryListPlaceholder(
+                        GroceryListView(
                             session: session,
-                            viewModel: viewModel,
+                            onNewList: { viewModel.handleNewList() },
                             onOpenHistory: { showHistory = true },
                             onOpenSettings: { showSettings = true },
-                            makeService: makeAnalysisService
+                            isSanityChecking: viewModel.isSanityChecking,
+                            pendingSuggestions: viewModel.pendingSuggestions ?? [],
+                            sanityCheckError: viewModel.sanityCheckError,
+                            itemsChangedSinceCheck: viewModel.itemsChangedSinceCheck,
+                            onAcceptSuggestions: { viewModel.acceptSuggestions() },
+                            onRejectSuggestions: { viewModel.rejectSuggestions() },
+                            onDismissSanityError: { viewModel.sanityCheckError = nil },
+                            onRecategorize: {
+                                if let service = makeAnalysisService() {
+                                    viewModel.recategorize(using: service)
+                                }
+                            }
                         )
                     }
                 }
@@ -108,120 +119,3 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Temporary Placeholder (until GroceryListView is implemented in Task 1.10)
-
-/// Temporary stand-in that will be replaced by the full GroceryListView.
-private struct GroceryListPlaceholder: View {
-    let session: ListSession
-    let viewModel: AppViewModel
-    let onOpenHistory: () -> Void
-    let onOpenSettings: () -> Void
-    let makeService: () -> (any GroceryAnalysisService)?
-
-    private var groupedItems: [(String, [GroceryItem])] {
-        let dict = Dictionary(grouping: session.items) { $0.category }
-        return StoreSections.sectionOrder.compactMap { section in
-            guard let items = dict[section], !items.isEmpty else { return nil }
-            return (section, items.sorted { $0.sortOrder < $1.sortOrder })
-        } + dict.keys
-            .filter { !StoreSections.sectionOrder.contains($0) }
-            .sorted()
-            .compactMap { section in
-                guard let items = dict[section], !items.isEmpty else { return nil }
-                return (section, items.sorted { $0.sortOrder < $1.sortOrder })
-            }
-    }
-
-    var body: some View {
-        List {
-            GroceryListHeader(session: session) { newName in
-                session.name = newName
-                session.updatedAt = Date()
-            }
-            .listRowSeparator(.hidden)
-
-            if viewModel.isSanityChecking {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Refining categories...")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let suggestions = viewModel.pendingSuggestions {
-                Section {
-                    Text("AI suggests moving \(suggestions.count) item\(suggestions.count == 1 ? "" : "s") to better sections.")
-                        .font(.subheadline)
-
-                    HStack {
-                        Button("Accept") { viewModel.acceptSuggestions() }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.green)
-
-                        Button("Dismiss") { viewModel.rejectSuggestions() }
-                            .buttonStyle(.bordered)
-                    }
-                }
-            }
-
-            if let error = viewModel.sanityCheckError {
-                Section {
-                    HStack {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                        Spacer()
-                        Button("Retry") {
-                            if let service = makeService() {
-                                viewModel.recategorize(using: service)
-                            }
-                        }
-                        .font(.caption)
-                    }
-                }
-            }
-
-            ForEach(groupedItems, id: \.0) { sectionName, items in
-                GrocerySectionView(
-                    sectionName: sectionName,
-                    items: items,
-                    onToggle: { item in item.isChecked.toggle() },
-                    onDelete: { item in session.items.removeAll { $0.id == item.id } },
-                    onRename: { item, newName in item.name = newName },
-                    onRecategorize: { item, newCategory in item.category = newCategory }
-                )
-            }
-        }
-        .listStyle(.insetGrouped)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    viewModel.handleNewList()
-                } label: {
-                    Label("New List", systemImage: "plus")
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 16) {
-                    if viewModel.itemsChangedSinceCheck {
-                        Button {
-                            if let service = makeService() {
-                                viewModel.recategorize(using: service)
-                            }
-                        } label: {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
-                    }
-                    Button(action: onOpenHistory) {
-                        Image(systemName: "clock")
-                    }
-                    Button(action: onOpenSettings) {
-                        Image(systemName: "gearshape")
-                    }
-                }
-            }
-        }
-    }
-}
