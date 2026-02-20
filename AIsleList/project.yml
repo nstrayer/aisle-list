@@ -39,6 +39,8 @@ targets:
           - UIInterfaceOrientationPortrait
         NSCameraUsageDescription: AIsle List uses your camera to photograph handwritten grocery lists
         NSPhotoLibraryUsageDescription: AIsle List accesses your photos to read handwritten grocery lists
+        SUPABASE_URL: https://jmcqjtqkqhudcovaoxkz.supabase.co 
+        SUPABASE_ANON_KEY: sb_publishable_yEw2oJBGM3T8wvjxUoFN2w_pnWbJ702
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aislelist.app
@@ -46,3 +48,6 @@ targets:
       - package: Supabase
     entitlements:
       path: Resources/AIsleList.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
