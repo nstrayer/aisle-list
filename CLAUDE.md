@@ -87,8 +87,19 @@ npm run lint     # run ESLint
 
 Edit the `STORE_SECTIONS` object in `src/lib/store-sections.ts` to add new section keywords.
 
+## iOS App (AIsleList/)
+
+SwiftUI migration of the web app. Lives in `AIsleList/` directory.
+
+- **Build system**: Uses xcodegen (`project.yml`) to generate `AIsleList.xcodeproj`. Run `cd AIsleList && xcodegen generate` after adding/removing Swift files.
+- **Data**: SwiftData with `ListSession` and `GroceryItem` @Model classes. ModelContainer created explicitly in `AIsleListApp.swift`.
+- **Services**: Protocol abstraction layer (`GroceryAnalysisService`) with `DirectAnthropicService` (BYOK) implementation. Designed for swapping to Supabase in Phase 2.
+- **Navigation**: Enum-based `Route` with `@Observable AppViewModel` state machine (mirrors React's App.tsx flow).
+- **Plans/research**: `thoughts/prds/swiftui-migration-plan.md` has the full implementation plan. `thoughts/swiftui-architecture-research.md` has patterns and code examples.
+
 ## Gotchas
 
+- **SwiftData + CloudKit**: Do NOT add CloudKit entitlements until the CloudKit container is actually created in Apple Developer portal. Unconfigured CloudKit entitlements cause SwiftData to silently discard all writes -- inserts and saves appear to succeed but data is never persisted.
 - **Tailwind v4**: Uses CSS-based config in `src/index.css`, not `tailwind.config.js`
 - **Browser API calls**: Uses `dangerouslyAllowBrowser: true` intentionally - API key is user-provided and stored in localStorage
 - **PWA**: Configured via `vite-plugin-pwa` in `vite.config.ts` - service worker auto-generated on build
