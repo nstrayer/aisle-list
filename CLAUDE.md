@@ -96,10 +96,13 @@ SwiftUI migration of the web app. Lives in `AIsleList/` directory.
 - **Services**: Protocol abstraction layer (`GroceryAnalysisService`) with `DirectAnthropicService` (BYOK) implementation. Designed for swapping to Supabase in Phase 2.
 - **Navigation**: Enum-based `Route` with `@Observable AppViewModel` state machine (mirrors React's App.tsx flow).
 - **Plans/research**: `thoughts/prds/swiftui-migration-plan.md` has the full implementation plan. `thoughts/swiftui-architecture-research.md` has patterns and code examples.
+- **Agent notes**: `thoughts/agent-notes/` has structured notes for agent context (project overview, iOS structure, migration status, gotchas, next steps). These docs are kept up-to-date automatically in the background -- read them for current project state before starting work.
 
 ## Gotchas
 
 - **SwiftData + CloudKit**: Do NOT add CloudKit entitlements until the CloudKit container is actually created in Apple Developer portal. Unconfigured CloudKit entitlements cause SwiftData to silently discard all writes -- inserts and saves appear to succeed but data is never persisted.
+- **SwiftData persistence**: Use explicit `ModelContainer` init with `fatalError` on failure instead of the `.modelContainer(for:)` convenience modifier, which hides initialization errors.
+- **Swift abs() overflow**: Never use `abs()` on hash values or any `Int` that could be `Int.min` -- it causes a fatal overflow. Use `.magnitude` instead (returns `UInt`, safe for all values).
 - **Tailwind v4**: Uses CSS-based config in `src/index.css`, not `tailwind.config.js`
 - **Browser API calls**: Uses `dangerouslyAllowBrowser: true` intentionally - API key is user-provided and stored in localStorage
 - **PWA**: Configured via `vite-plugin-pwa` in `vite.config.ts` - service worker auto-generated on build
