@@ -6,6 +6,7 @@ import Supabase
 final class SupabaseAuthService: AuthService {
 
     private(set) var authState: AuthState = .unknown
+    private(set) var accessToken: String?
 
     private let client: SupabaseClient
     let baseURL: URL
@@ -18,19 +19,13 @@ final class SupabaseAuthService: AuthService {
         self.client = SupabaseClient(supabaseURL: url, supabaseKey: anonKey)
     }
 
-    /// Current access token, fetched fresh from the session to avoid staleness.
-    var accessToken: String? {
-        // The Supabase SDK manages token refresh internally;
-        // reading currentSession returns the latest valid token.
-        try? client.auth.currentSession?.accessToken
-    }
-
     // MARK: - Sign In with Apple
 
     func signInWithApple(idToken: String, nonce: String) async throws {
         let session = try await client.auth.signInWithIdToken(
             credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
         )
+        accessToken = session.accessToken
         authState = .signedIn(userId: session.user.id.uuidString)
     }
 
@@ -39,9 +34,11 @@ final class SupabaseAuthService: AuthService {
     func restoreSession() async {
         do {
             let session = try await client.auth.session
+            accessToken = session.accessToken
             authState = .signedIn(userId: session.user.id.uuidString)
         } catch {
             authState = .signedOut
+            accessToken = nil
         }
     }
 
@@ -50,6 +47,7 @@ final class SupabaseAuthService: AuthService {
     func signOut() async throws {
         try await client.auth.signOut()
         authState = .signedOut
+        accessToken = nil
     }
 
     // MARK: - Supabase Client Access
