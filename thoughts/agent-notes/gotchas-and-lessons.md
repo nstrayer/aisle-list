@@ -90,10 +90,44 @@ The generated `.xcodeproj` should not be committed to git (it's in the repo curr
   - `grocery_session_image_{id}` -- compressed thumbnail
   - This split design allows storing 20+ lists within localStorage limits
 
+## Supabase Edge Function Architecture
+
+The edge function (`supabase/functions/analyze-grocery-list/index.ts`) runs on Deno and handles two actions:
+- `analyze`: sends image to Sonnet with forced tool_choice for structured section extraction
+- `sanity_check`: sends item list to Haiku for category correction
+
+Key patterns:
+- **CORS**: Must handle `OPTIONS` preflight with `Access-Control-Allow-*` headers
+- **Auth**: Reads `Authorization` header, creates Supabase client with it, calls `getUser()` to validate JWT
+- **Scan limits**: Checks `subscriptions` table first (active/grace_period), then counts `scan_usage` rows for current calendar month. Free tier = 3 scans/month.
+- **Error codes**: Returns `403` with `error: "scan_limit_reached"` and metadata (`scansUsed`, `scanLimit`, `upgradeRequired`) for client-side handling
+
+## Dual-Mode ContentView Pattern
+
+`ContentView` uses `isAuthMode` (derived from whether `authService` is non-nil in the environment) to switch between two view builders:
+- `authModeContent`: checks `AuthState` enum (`.unknown` -> loading spinner, `.signedOut` -> `SignInView`, `.signedIn` -> `appContent`)
+- `byokModeContent`: checks route (`.apiKey` -> `ApiKeyInputView`, default -> `appContent`)
+
+The `onAppear` guard `if !isAuthMode` prevents the BYOK key check from running in auth mode.
+
+## Sign in with Apple + Supabase
+
+The nonce flow:
+1. Generate random nonce string (32 chars from alphanumeric charset)
+2. SHA256 hash the nonce and pass it in `ASAuthorizationAppleIDRequest.nonce`
+3. After Apple callback, pass the raw (unhashed) nonce + `identityToken` to `supabase.auth.signInWithIdToken`
+4. Supabase verifies the token against Apple's JWKS and creates/returns a session
+
+Important: user cancellation (`ASAuthorizationError.canceled`) should not show an error message.
+
+## Info.plist-Based Feature Detection
+
+Supabase availability is detected at runtime by checking `Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL")`. If the key is missing or empty, the app runs in BYOK mode. This allows the same binary to work with or without Supabase configured.
+
 ## Anthropic API Integration
 
 - Analysis uses `claude-sonnet-4-5-20250929` with forced tool_choice
 - Sanity check uses `claude-haiku-4-5-20251001`
 - Headers: `x-api-key`, `anthropic-version: 2023-06-01`, `content-type: application/json`
 - Response parsing: find content block with `type: "tool_use"`, decode `input`
-- Prompts and tool schemas defined in `src/lib/anthropic-client.ts` (web) and `Services/Implementations/DirectAnthropicService.swift` (iOS)
+- Prompts and tool schemas defined in `src/lib/anthropic-client.ts` (web), `Services/Implementations/DirectAnthropicService.swift` (iOS BYOK), and `supabase/functions/analyze-grocery-list/index.ts` (edge function)

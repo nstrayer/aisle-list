@@ -66,11 +66,16 @@ These were addressed in a prior commit:
 
 | Task | Description | Key Files |
 |------|-------------|-----------|
-| 2.1 | Supabase project + schema | `supabase/migrations/001_initial.sql` (scan_usage, subscriptions tables with RLS) |
-| 2.2 | Edge function (API proxy) | `supabase/functions/analyze-grocery-list/index.ts` (JWT auth, subscription check, free tier limit, Anthropic proxy) |
-| 2.3 | Auth service | `Services/Protocols/AuthService.swift`, `Services/Implementations/SupabaseAuthService.swift`, `Views/Auth/SignInView.swift` |
-| 2.4 | Supabase analysis service | `Services/Implementations/SupabaseAnalysisService.swift` (calls edge function, handles scan limit errors) |
-| 2.5 | Integration | `AIsleListApp.swift`, `ContentView.swift`, `ServiceEnvironmentKeys.swift` updated. BYOK kept as fallback when Supabase not configured. |
+| 2.1 | Supabase project + schema | `supabase/migrations/001_initial.sql` (scan_usage, subscriptions tables with RLS), `supabase/config.toml` (local dev config, project_id: kroger-list) |
+| 2.2 | Edge function (API proxy) | `supabase/functions/analyze-grocery-list/index.ts` (Deno, JWT auth, subscription check, free tier 3 scans/month, dual action: analyze + sanity_check) |
+| 2.3 | Auth service | `Services/Protocols/AuthService.swift` (AuthState enum + protocol), `Services/Implementations/SupabaseAuthService.swift` (Sign in with Apple via Supabase), `Views/Auth/SignInView.swift` (Apple sign-in UI + nonce handling) |
+| 2.4 | Supabase analysis service | `Services/Implementations/SupabaseAnalysisService.swift` (calls edge function, handles scan limit errors via `SupabaseAnalysisError`) |
+| 2.5 | Integration | `AIsleListApp.swift` (auth/analysis service setup + environment injection), `ContentView.swift` (dual-mode: authModeContent vs byokModeContent), `ServiceEnvironmentKeys.swift` (added AuthServiceKey). BYOK kept as fallback when Supabase not configured via Info.plist detection. |
+
+### New Dependencies
+
+- **Supabase Swift SDK** (`supabase-swift` >= 2.0.0) added to `project.yml` as SPM package
+- Edge function uses `@supabase/supabase-js@2` via esm.sh (Deno)
 
 ### Manual Steps Required
 

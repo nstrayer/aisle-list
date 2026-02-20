@@ -4,9 +4,9 @@
 
 ```
 AIsleList/
-  AIsleListApp.swift         # @main entry, explicit ModelContainer init
-  ContentView.swift          # Root view, NavigationStack, route-based navigation
-  project.yml                # xcodegen config (generates .xcodeproj)
+  AIsleListApp.swift         # @main entry, ModelContainer init, auth/analysis service setup
+  ContentView.swift          # Root view, dual-mode routing (auth vs BYOK)
+  project.yml                # xcodegen config (generates .xcodeproj), Supabase Swift dependency
   Models/
     ListSession.swift        # @Model - session with items, thumbnail
     GroceryItem.swift        # @Model - individual grocery item
@@ -14,8 +14,10 @@ AIsleList/
     CategorySuggestion.swift # Codable struct for sanity check results
     Route.swift              # Navigation enum: apiKey, upload, clarify, list
   Views/
+    Auth/
+      SignInView.swift        # Sign in with Apple UI, nonce generation, SHA256 hashing
     ApiKey/
-      ApiKeyInputView.swift  # SecureField for API key entry (temporary, Phase 1 only)
+      ApiKeyInputView.swift  # SecureField for API key entry (BYOK fallback only)
     Upload/
       ImageUploadView.swift  # Camera/photo picker, recent lists, analysis trigger
       CameraPicker.swift     # UIImagePickerController wrapper
@@ -39,10 +41,13 @@ AIsleList/
   Services/
     Protocols/
       GroceryAnalysisService.swift  # Protocol: analyzeImage, sanityCheckCategories
+      AuthService.swift             # Protocol: AuthState enum, signInWithApple, restoreSession, signOut
     Implementations/
       DirectAnthropicService.swift  # BYOK: raw URLSession to Anthropic API
+      SupabaseAuthService.swift     # Sign in with Apple via Supabase, session management
+      SupabaseAnalysisService.swift # Calls edge function, handles scan limit errors
     Environment/
-      ServiceEnvironmentKeys.swift  # SwiftUI environment injection
+      ServiceEnvironmentKeys.swift  # SwiftUI environment injection (analysisService + authService)
   Utilities/
     StoreSections.swift      # 12 store sections, keyword matching, colors
     ImagePreprocessor.swift  # Resize/compress for API + thumbnails
@@ -61,14 +66,22 @@ AIsleList/
 - iOS 17.0+ deployment target, Swift 5.10+
 - Bundle ID: `com.aislelist.app`
 - Dev team: `RKFCF9LE9G`
+- **Dependencies**: Supabase Swift SDK (`supabase-swift` >= 2.0.0) via SPM
 
 ## Navigation Pattern
 
 Enum-based routing via `Route`:
-- `.apiKey` -- show API key input
+- `.apiKey` -- show API key input (BYOK mode only)
 - `.upload` -- show image upload/camera
 - `.clarify([GrocerySection])` -- show section selection
 - `.list(ListSession)` -- show grocery checklist
+
+`ContentView` has a dual-mode architecture:
+- **Auth mode** (Supabase configured): `authModeContent` checks `AuthState` -- shows `SignInView` when signed out, `appContent` when signed in
+- **BYOK mode** (no Supabase): `byokModeContent` shows `ApiKeyInputView` for `.apiKey` route, then `appContent`
+- **Shared `appContent`**: the upload/clarify/list flow, used by both modes
+
+Service resolution: `resolveAnalysisService()` prefers injected `SupabaseAnalysisService` (via environment), falls back to `DirectAnthropicService` (BYOK via Keychain).
 
 `AppViewModel` is an `@Observable` class that manages `currentRoute` and orchestrates the flow between screens.
 

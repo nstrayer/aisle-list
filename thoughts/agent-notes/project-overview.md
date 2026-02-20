@@ -15,21 +15,30 @@ The React web app is functionally complete and serves as the reference implement
 
 ## Core User Flow
 
-1. User provides API key (web: localStorage, iOS: Keychain)
+**Auth mode (Supabase -- iOS Phase 2):**
+1. User signs in with Apple (Supabase auth)
 2. User uploads/photographs a handwritten grocery list
-3. Image sent to Claude API (Sonnet for analysis)
+3. Image sent to Supabase edge function, which proxies to Claude API (Sonnet for analysis)
 4. Claude identifies sections: grocery, meal_plan, crossed_out, notes
 5. User selects which sections to include (clarify screen)
 6. Selected items are categorized by Kroger store section via keyword matching
-7. Haiku runs a sanity check on category assignments
+7. Edge function calls Haiku for sanity check on category assignments
 8. Items displayed as checklist organized by store section
 9. Sessions auto-saved for history
+10. Free tier: 3 scans/month; paid subscribers: unlimited
+
+**BYOK mode (web app + iOS fallback):**
+1. User provides API key (web: localStorage, iOS: Keychain)
+2-9. Same flow, but API calls go directly from the client to Anthropic
 
 ## Key Design Decisions
 
-- **BYOK (Phase 1)**: User provides their own Anthropic API key. Phase 2 will replace this with Supabase auth + server-side API proxy.
+- **Dual-mode architecture**: iOS app supports both Supabase auth mode and BYOK fallback. Mode is determined at launch by checking for `SUPABASE_URL`/`SUPABASE_ANON_KEY` in Info.plist. If missing, BYOK mode activates automatically.
+- **Supabase backend (Phase 2)**: Edge function (`supabase/functions/analyze-grocery-list/`) proxies Anthropic API calls. Handles JWT auth, subscription checking, and free-tier scan limits (3/month). Database has `scan_usage` and `subscriptions` tables with RLS.
+- **Sign in with Apple**: Primary auth method. Uses Supabase's `signInWithIdToken` with Apple ID credential + SHA256-hashed nonce.
 - **SwiftData for persistence**: Replaces localStorage. Models: `ListSession`, `GroceryItem`.
-- **Service protocol abstraction**: `GroceryAnalysisService` protocol allows swapping `DirectAnthropicService` (BYOK) for `SupabaseAnalysisService` (Phase 2) without UI changes.
+- **Service protocol abstraction**: `GroceryAnalysisService` protocol allows swapping `DirectAnthropicService` (BYOK) for `SupabaseAnalysisService` (Supabase) without UI changes. Similarly, `AuthService` protocol abstracts auth.
+- **Environment-based service injection**: `authService` and `analysisService` are injected via SwiftUI `EnvironmentValues` from `AIsleListApp`. `ContentView.resolveAnalysisService()` prefers the injected service, falls back to BYOK.
 - **xcodegen for project management**: `project.yml` generates `AIsleList.xcodeproj`. Run `cd AIsleList && xcodegen generate` after adding/removing Swift files.
 
 ## Agent Notes Discovery
