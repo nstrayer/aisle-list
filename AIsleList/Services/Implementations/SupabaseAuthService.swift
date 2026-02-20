@@ -22,7 +22,7 @@ final class SupabaseAuthService: AuthService {
     var accessToken: String? {
         // The Supabase SDK manages token refresh internally;
         // reading currentSession returns the latest valid token.
-        try? client.auth.currentSession.accessToken
+        try? client.auth.currentSession?.accessToken
     }
 
     // MARK: - Sign In with Apple
