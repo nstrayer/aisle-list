@@ -73,7 +73,12 @@ The generated `.xcodeproj` should not be committed to git (it's in the repo curr
 - **Browser API calls**: `dangerouslyAllowBrowser: true` is intentional -- user provides their own key
 - **PWA**: `vite-plugin-pwa` in `vite.config.ts`, service worker auto-generated on build
 - **Dark mode**: Tailwind `dark:` variant with class strategy, persisted to localStorage
-- **Image compression**: Images resized to 400px width + JPEG compressed before localStorage storage
+- **Image compression**: Images resized to 400px width + JPEG compressed before localStorage storage (~200KB max per thumbnail)
+- **List history storage**: Uses separate localStorage keys for efficiency:
+  - `grocery_sessions_index` -- lightweight index of all sessions (avoids loading full data)
+  - `grocery_session_{id}` -- full session data (items only)
+  - `grocery_session_image_{id}` -- compressed thumbnail
+  - This split design allows storing 20+ lists within localStorage limits
 
 ## Anthropic API Integration
 

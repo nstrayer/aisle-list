@@ -34,7 +34,7 @@ The React web app is functionally complete and serves as the reference implement
 
 ## Agent Notes Discovery
 
-CLAUDE.md has a top-level "Agent Notes" section that directs agents to read `thoughts/agent-notes/` for current project state before starting work. The iOS App section of CLAUDE.md also references this directory. Key gotchas (SwiftData persistence, abs() overflow, CloudKit) are summarized in CLAUDE.md and documented in detail in `gotchas-and-lessons.md`.
+CLAUDE.md has a top-level "Agent Notes" section directing agents to read `thoughts/agent-notes/` for current project state before starting work. CLAUDE.md is intentionally slim -- it covers project structure, build commands, and key code locations, then defers to agent notes for iOS details and gotchas (e.g., `gotchas-and-lessons.md` for iOS/SwiftData gotchas, web app storage architecture, etc.).
 
 ## Repository Links
 
