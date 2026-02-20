@@ -106,7 +106,7 @@ struct SignInView: View {
         var bytes = [UInt8](repeating: 0, count: length)
         let result = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
         precondition(result == errSecSuccess)
-        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._")
         return String(bytes.map { charset[Int($0) % charset.count] })
     }
 

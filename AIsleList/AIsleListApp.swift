@@ -30,17 +30,17 @@ struct AIsleListApp: App {
     }
 
     private func setupServices() {
-        // Check if Supabase is configured
-        if let urlString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
-           !urlString.isEmpty,
-           Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String != nil {
-            let auth = SupabaseAuthService()
-            authService = auth
-            analysisService = SupabaseAnalysisService(authService: auth)
-            Task {
-                await auth.restoreSession()
-            }
+        // Check if Supabase is configured with valid URL + anon key
+        guard let urlString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
+              let anonKey = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String,
+              let auth = SupabaseAuthService(urlString: urlString, anonKey: anonKey) else {
+            // Supabase not configured or invalid -> BYOK mode
+            return
         }
-        // If Supabase not configured, authService stays nil -> BYOK mode
+        authService = auth
+        analysisService = SupabaseAnalysisService(authService: auth)
+        Task {
+            await auth.restoreSession()
+        }
     }
 }

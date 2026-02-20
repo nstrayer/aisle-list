@@ -98,6 +98,22 @@ const STORE_SECTIONS = [
   "Other",
 ];
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+};
+
+function jsonResponse(
+  body: Record<string, unknown>,
+  status = 200
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
+}
+
 function buildSanityCheckPrompt(
   items: { id: string; name: string; category: string }[]
 ): string {
@@ -129,31 +145,45 @@ interface SanityCheckPayload {
 
 type RequestPayload = AnalyzePayload | SanityCheckPayload;
 
+function validatePayload(body: unknown): RequestPayload | null {
+  if (typeof body !== "object" || body === null) return null;
+  const obj = body as Record<string, unknown>;
+
+  if (obj.action === "analyze") {
+    if (
+      typeof obj.imageBase64 !== "string" ||
+      !obj.imageBase64 ||
+      typeof obj.mediaType !== "string" ||
+      !["image/jpeg", "image/png", "image/gif", "image/webp"].includes(
+        obj.mediaType
+      )
+    ) {
+      return null;
+    }
+    return obj as unknown as AnalyzePayload;
+  }
+
+  if (obj.action === "sanity_check") {
+    if (!Array.isArray(obj.items) || obj.items.length === 0) return null;
+    return obj as unknown as SanityCheckPayload;
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, content-type",
-      },
-    });
+    return new Response(null, { headers: CORS_HEADERS });
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
   // Validate auth
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Missing authorization" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Missing authorization" }, 401);
   }
 
   const supabase = createClient(
@@ -168,38 +198,44 @@ Deno.serve(async (req) => {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "Invalid or expired token" }, 401);
   }
 
-  const payload: RequestPayload = await req.json();
-  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!anthropicKey) {
-    return new Response(
-      JSON.stringify({ error: "Server configuration error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+  // Validate payload
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+
+  const payload = validatePayload(rawBody);
+  if (!payload) {
+    return jsonResponse(
+      { error: "Invalid request. Required: action (analyze|sanity_check) with appropriate fields." },
+      400
     );
   }
 
-  // For analyze action: check usage limits
+  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!anthropicKey) {
+    return jsonResponse({ error: "Server configuration error" }, 500);
+  }
+
+  // For analyze action: check usage limits (before calling Anthropic)
   if (payload.action === "analyze") {
     const canScan = await checkScanLimit(supabase, user.id);
     if (!canScan) {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           error: "scan_limit_reached",
           scansUsed: FREE_SCAN_LIMIT,
           scanLimit: FREE_SCAN_LIMIT,
           upgradeRequired: true,
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        },
+        403
       );
     }
-
-    // Record the scan
-    await supabase.from("scan_usage").insert({ user_id: user.id });
   }
 
   // Call Anthropic API
@@ -216,17 +252,8 @@ Deno.serve(async (req) => {
     });
 
     if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      return new Response(
-        JSON.stringify({
-          error: "Anthropic API error",
-          details: errText,
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      console.error("Anthropic API error:", await anthropicRes.text());
+      return jsonResponse({ error: "AI analysis failed" }, 502);
     }
 
     const anthropicData = await anthropicRes.json();
@@ -235,23 +262,23 @@ Deno.serve(async (req) => {
     );
 
     if (!toolUse) {
-      return new Response(
-        JSON.stringify({ error: "No tool response from Claude" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "AI analysis failed" }, 502);
     }
 
-    return new Response(JSON.stringify(toolUse.input), {
-      headers: { "Content-Type": "application/json" },
-    });
+    // Record scan usage only after successful analysis
+    if (payload.action === "analyze") {
+      const { error: insertError } = await supabase
+        .from("scan_usage")
+        .insert({ user_id: user.id });
+      if (insertError) {
+        console.error("Failed to record scan usage:", insertError);
+      }
+    }
+
+    return jsonResponse(toolUse.input);
   } catch (err) {
-    return new Response(
-      JSON.stringify({
-        error: "Failed to call Anthropic API",
-        details: String(err),
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    console.error("Edge function error:", err);
+    return jsonResponse({ error: "AI analysis failed" }, 502);
   }
 });
 

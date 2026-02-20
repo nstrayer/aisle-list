@@ -78,7 +78,7 @@ Edit the `STORE_SECTIONS` object in `src/lib/store-sections.ts` to add new secti
 
 ## iOS App (AIsleList/)
 
-SwiftUI migration of the web app. Lives in `AIsleList/` directory. Uses xcodegen (`project.yml`) to generate the Xcode project -- run `cd AIsleList && xcodegen generate` after adding/removing Swift files. Supports dual-mode: Supabase auth (Sign in with Apple + edge function) or BYOK fallback (direct Anthropic API calls). Mode is determined by presence of `SUPABASE_URL` in Info.plist.
+SwiftUI migration of the web app. Lives in `AIsleList/` directory. Uses xcodegen (`project.yml`) to generate the Xcode project -- run `cd AIsleList && xcodegen generate` after adding/removing Swift files. Supports dual-mode: Supabase auth (Sign in with Apple + edge function) or BYOK fallback (direct Anthropic API calls). Mode is determined by presence of both `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Info.plist.
 
 ## Supabase Backend (supabase/)
 
