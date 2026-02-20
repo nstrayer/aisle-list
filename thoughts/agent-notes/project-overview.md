@@ -9,7 +9,7 @@
 The project has three codebases:
 
 1. **Web app** (original) -- Vite + React + TypeScript in `src/`. Uses Anthropic SDK with user-provided API key (BYOK). Tailwind CSS v4, Zod for structured outputs, PWA via vite-plugin-pwa.
-2. **iOS app** (in progress) -- Native SwiftUI in `AIsleList/`. Full rewrite, not a wrapper. Currently on `feature/swiftui-migration` branch.
+2. **iOS app** (Phase 1 complete, Phase 2 in progress) -- Native SwiftUI in `AIsleList/`. Full rewrite, not a wrapper. Currently on `feature/swiftui-migration` branch. Phase 1 (core SwiftUI app with BYOK) is complete; Phase 2 (Supabase backend + auth) code is written, pending manual Supabase project setup.
 3. **Supabase backend** -- `supabase/` directory. Postgres database (scan_usage, subscriptions tables with RLS), Deno edge function (`functions/analyze-grocery-list/index.ts`) that proxies Anthropic API calls with JWT auth and scan limits. Config in `config.toml`.
 
 The React web app is functionally complete and serves as the reference implementation for the iOS port.

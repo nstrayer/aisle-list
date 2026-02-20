@@ -36,6 +36,8 @@ Info.plist expanded from camera/photo usage descriptions to full bundle configur
 - Slimmed CLAUDE.md to defer detail to agent-notes (commit 2d3d740)
 - Updated CLAUDE.md: project overview to "AIsle List" with three codebases, condensed tech stack (Web/iOS/Backend), added Supabase Backend section, expanded iOS section with dual-mode info (commit f009e49)
 - Updated agent notes for Supabase auth + analysis integration (commit 18fa2a7)
+- Updated agent notes for Phase 2 hardening changes (commit 428a287)
+- Marked Phase 1 complete, added commit refs to Phase 2 hardening section (commit 2e17840)
 
 ### CloudKit Compatibility Fix
 
