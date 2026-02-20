@@ -1,29 +1,34 @@
 # Next Steps
 
-## Immediate (Phase 1 Completion)
+## Immediate: Supabase Setup (Manual Steps)
 
-### Task 1.15: CloudKit Configuration
-- **Blocked on**: Creating iCloud container in Apple Developer portal
-- Once container exists: add iCloud capability, enable CloudKit, create container `iCloud.com.yourcompany.aislelist`
-- SwiftData automatically syncs @Model entities when CloudKit container is configured
+Phase 2 code is written. These manual steps are needed to activate it:
+
+1. **Create a Supabase project** at https://supabase.com/dashboard
+2. **Run the migration**: `supabase db push` or apply `supabase/migrations/001_initial.sql` via SQL editor
+3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list`
+4. **Set edge function secret**: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
+5. **Enable Apple auth** in Supabase dashboard (Authentication > Providers > Apple)
+6. **Add to Info.plist** (or project.yml info properties):
+   - `SUPABASE_URL`: your project URL (e.g., `https://xxxx.supabase.co`)
+   - `SUPABASE_ANON_KEY`: your project's anon/public key
+7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
+
+Until these steps are done, the app falls back to BYOK mode automatically.
+
+## Remaining Phase 2 Cleanup
+
+After Supabase is verified working:
+- Delete BYOK files (DirectAnthropicService, ApiKeyInputView, KeychainHelper)
+- Update SettingsView: remove API Key section, add Account section (email, sign out)
+- Show remaining free scans on upload screen
+
+## Still Pending: Task 1.15 (CloudKit)
+
+- Add iCloud capability in Xcode, enable CloudKit, create container `iCloud.com.aislelist.app`
+- Add Background Modes with Remote notifications
 - No code changes needed -- just Xcode project configuration
-
-### Testing on Device
-- Phase 1 code is feature-complete pending CloudKit
-- App should be testable on-device with BYOK (bring your own API key) flow
-- Test: camera capture, photo library import, AI analysis, section selection, checklist, history, settings
-
-## Phase 2: Supabase Backend + Auth
-
-Removes BYOK dependency. Adds server-side API proxy and user accounts.
-
-1. **Supabase project + schema** -- `scan_usage` and `subscriptions` tables with RLS
-2. **Edge function** (`analyze-grocery-list`) -- JWT validation, subscription check, free tier (3 scans/month), Anthropic API proxy
-3. **Auth service** -- Sign in with Apple + Supabase auth (nonce flow)
-4. **Supabase analysis service** -- Drop-in replacement for DirectAnthropicService via protocol
-5. **Integration** -- Swap services, add sign-in flow, remove API key UI
-
-SPM dependency needed: `https://github.com/supabase/supabase-swift` (from: "2.0.0")
+- Can be done anytime independently
 
 ## Phase 3: Subscriptions + App Store
 

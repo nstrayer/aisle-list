@@ -60,11 +60,39 @@ These were addressed in a prior commit:
 - `HistoryView`: Trim with `.whitespacesAndNewlines` for rename validation
 - `ApiKeyInputView`: Trim with `.whitespacesAndNewlines` and pass trimmed value
 
-## Phase 2: Supabase Backend + Auth -- NOT STARTED
+## Phase 2: Supabase Backend + Auth -- IN PROGRESS
 
-Key tasks: Supabase project setup, edge function for API proxy, Sign in with Apple + Supabase auth, swap DirectAnthropicService for SupabaseAnalysisService.
+### Completed Tasks
 
-See `thoughts/prds/swiftui-migration-plan.md` Phase 2 section for full details.
+| Task | Description | Key Files |
+|------|-------------|-----------|
+| 2.1 | Supabase project + schema | `supabase/migrations/001_initial.sql` (scan_usage, subscriptions tables with RLS) |
+| 2.2 | Edge function (API proxy) | `supabase/functions/analyze-grocery-list/index.ts` (JWT auth, subscription check, free tier limit, Anthropic proxy) |
+| 2.3 | Auth service | `Services/Protocols/AuthService.swift`, `Services/Implementations/SupabaseAuthService.swift`, `Views/Auth/SignInView.swift` |
+| 2.4 | Supabase analysis service | `Services/Implementations/SupabaseAnalysisService.swift` (calls edge function, handles scan limit errors) |
+| 2.5 | Integration | `AIsleListApp.swift`, `ContentView.swift`, `ServiceEnvironmentKeys.swift` updated. BYOK kept as fallback when Supabase not configured. |
+
+### Manual Steps Required
+
+Before the Supabase path works, you need to:
+
+1. **Create a Supabase project** at https://supabase.com/dashboard
+2. **Run the migration**: `supabase db push` or apply `001_initial.sql` via SQL editor
+3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list`
+4. **Set edge function secret**: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
+5. **Enable Apple auth** in Supabase dashboard (Authentication > Providers > Apple)
+6. **Add to Info.plist** (or project.yml info properties):
+   - `SUPABASE_URL`: your project URL (e.g., `https://xxxx.supabase.co`)
+   - `SUPABASE_ANON_KEY`: your project's anon/public key
+7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
+
+Until these steps are done, the app falls back to BYOK mode automatically.
+
+### Not Yet Done
+
+- Delete BYOK files (DirectAnthropicService, ApiKeyInputView, KeychainHelper) -- deferred until Supabase is verified working
+- Update SettingsView: remove API Key section, add Account section (email, sign out)
+- Show remaining free scans on upload screen
 
 ## Phase 3: Subscriptions + App Store -- NOT STARTED
 
