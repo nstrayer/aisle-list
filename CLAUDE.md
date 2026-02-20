@@ -96,7 +96,10 @@ SwiftUI migration of the web app. Lives in `AIsleList/` directory.
 - **Services**: Protocol abstraction layer (`GroceryAnalysisService`) with `DirectAnthropicService` (BYOK) implementation. Designed for swapping to Supabase in Phase 2.
 - **Navigation**: Enum-based `Route` with `@Observable AppViewModel` state machine (mirrors React's App.tsx flow).
 - **Plans/research**: `thoughts/prds/swiftui-migration-plan.md` has the full implementation plan. `thoughts/swiftui-architecture-research.md` has patterns and code examples.
-- **Agent notes**: `thoughts/agent-notes/` has structured notes for agent context (project overview, iOS structure, migration status, gotchas, next steps). These docs are kept up-to-date automatically in the background -- read them for current project state before starting work.
+
+## Agent Notes
+
+`thoughts/agent-notes/` has structured notes for agent context (project overview, iOS structure, migration status, gotchas, next steps). These docs are kept up-to-date automatically in the background -- read them for current project state before starting work.
 
 ## Gotchas
 
