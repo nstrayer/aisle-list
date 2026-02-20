@@ -9,7 +9,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: RKFCF9LE9G
 
 targets:
   AIsleList:
@@ -39,8 +39,3 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.aislelist.app
     entitlements:
       path: Resources/AIsleList.entitlements
-      properties:
-        com.apple.developer.icloud-container-identifiers:
-          - iCloud.com.aislelist.app
-        com.apple.developer.icloud-services:
-          - CloudKit

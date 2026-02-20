@@ -8,7 +8,6 @@ struct ImageUploadView: View {
     var onOpenHistory: () -> Void
     var onOpenSettings: () -> Void
     var isAnalyzing: Bool
-
     @State private var showCamera = false
     @State private var capturedImage: UIImage?
     @State private var selectedItem: PhotosPickerItem?
