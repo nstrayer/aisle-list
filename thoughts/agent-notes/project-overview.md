@@ -39,8 +39,11 @@ CLAUDE.md has a top-level "Agent Notes" section directing agents to read `though
 ## Repository Links
 
 - Implementation plan: `thoughts/prds/swiftui-migration-plan.md`
+- AI categorization PRD: `thoughts/prds/ai-categorization.md`
 - Architecture research: `thoughts/swiftui-architecture-research.md`
 - Component mapping: `thoughts/swiftui-component-mapping.md`
 - StoreKit research: `thoughts/storekit2-research.md`
 - Subscription research: `thoughts/subscription-research.md`, `thoughts/subscription-and-ios-research.md`
 - iOS conversion rationale: `thoughts/ios-conversion-research.md`
+- Web app enhancement ideas: `ENHANCEMENT_RESEARCH.md` (root)
+- Web app pending TODOs: `TODO.md` (root) -- drag-drop categories, styling, animations

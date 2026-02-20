@@ -23,11 +23,13 @@ Branch: `feature/swiftui-migration`
 | 1.13 | App ViewModel + navigation | `ViewModels/AppViewModel.swift`, `ContentView.swift` |
 | 1.14 | Network monitor | `Utilities/NetworkMonitor.swift` |
 
-### CLAUDE.md Documentation Updates (commits 0b4578a, b55afa3, dfe0bd2)
+### Documentation Updates
 
-- Added iOS App section to CLAUDE.md with build system, data layer, services, and navigation details
+- Added iOS App section to CLAUDE.md with build system, data layer, services, and navigation details (commit 0b4578a)
 - Added gotchas for SwiftData+CloudKit, SwiftData persistence, and abs() overflow
-- Added top-level "Agent Notes" section pointing to `thoughts/agent-notes/`
+- Added top-level "Agent Notes" section pointing to `thoughts/agent-notes/` (commits b55afa3, dfe0bd2)
+- Created agent-notes files: project-overview, ios-app-structure, migration-status, gotchas-and-lessons, next-steps (commit b93a2e8)
+- Slimmed CLAUDE.md to defer detail to agent-notes (commit 2d3d740)
 
 ### Not Yet Done
 

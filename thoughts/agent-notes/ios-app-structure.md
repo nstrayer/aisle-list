@@ -49,7 +49,7 @@ AIsleList/
     KeychainHelper.swift     # Save/load/delete from iOS Keychain
     NetworkMonitor.swift     # NWPathMonitor wrapper, @Observable
   Resources/
-    Info.plist               # Camera + photo library usage descriptions
+    Info.plist               # Bundle config, camera/photo usage, portrait-only, launch screen
     AIsleList.entitlements   # Empty (CloudKit removed until container created)
     XCODE_SETUP.md           # Setup instructions for Xcode project
 ```
