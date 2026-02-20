@@ -1,175 +1,137 @@
 import SwiftUI
-import SwiftData
 
 struct GroceryListView: View {
-    @Bindable var session: ListSession
+    @Binding var items: [GroceryItem]
+    @Binding var sessionName: String
+    let uploadedImage: Data?
+    let isSanityChecking: Bool
+    let pendingSuggestions: [CategorySuggestion]
+    let sanityCheckError: String?
+    let itemsChangedSinceCheck: Bool
+    let onAcceptSuggestions: () -> Void
+    let onRejectSuggestions: () -> Void
+    let onDismissSanityError: () -> Void
+    let onRecategorize: () -> Void
+    let onRenameSession: (String) -> Void
     let onNewList: () -> Void
-    let onOpenHistory: () -> Void
 
-    @Environment(\.modelContext) private var modelContext
-
-    @State private var sanityState: SanityState = .idle
-    @State private var showHistory = false
-
-    enum SanityState {
-        case idle
-        case checking
-        case suggestions([CategorySuggestion])
-        case error(String)
-    }
-
-    // MARK: - Grouped + sorted items
-
-    private var sortedSections: [(name: String, items: [GroceryItem])] {
-        // Group by category
-        var groups: [String: [GroceryItem]] = [:]
-        for item in session.items {
-            groups[item.category, default: []].append(item)
-        }
-
-        // Sort within each group: unchecked first, then by sortOrder
-        for key in groups.keys {
-            groups[key]?.sort { a, b in
-                if a.isChecked != b.isChecked { return !a.isChecked }
-                return a.sortOrder < b.sortOrder
-            }
-        }
-
-        // Section ordering: known sections (in store order), dynamic (alphabetical), then Other
-        let known = StoreSections.sectionOrder.filter { $0 != "Other" && groups[$0] != nil }
-        let dynamic = groups.keys
-            .filter { !StoreSections.sectionOrder.contains($0) }
-            .sorted()
-        let other: [String] = groups["Other"] != nil ? ["Other"] : []
-
-        let orderedKeys = known + dynamic + other
-        return orderedKeys.compactMap { key in
-            guard let items = groups[key] else { return nil }
-            return (name: key, items: items)
-        }
-    }
+    /// IDs of items that were just checked and are "settling" (stay in unchecked position briefly).
+    @State private var settlingItemIDs: Set<String> = []
 
     var body: some View {
-        List {
-            Section {
-                GroceryListHeader(session: session, onRename: renameSession)
-            }
-            .listRowSeparator(.hidden)
-
-            sanityBannerSection
-
-            ForEach(sortedSections, id: \.name) { section in
-                GrocerySectionView(
-                    sectionName: section.name,
-                    items: section.items,
-                    onToggle: toggleItem,
-                    onDelete: deleteItem,
-                    onRename: renameItem,
-                    onRecategorize: recategorizeItem
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header with progress ring
+                GroceryListHeader(
+                    checkedCount: items.filter(\.isChecked).count,
+                    totalCount: items.count,
+                    sessionName: $sessionName,
+                    onRename: onRenameSession
                 )
-            }
 
-            Section {
-                AddItemButton(action: addItem)
-            }
-            .listRowSeparator(.hidden)
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(session.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button(action: onNewList) {
-                        Label("New List", systemImage: "doc.badge.plus")
+                // Sanity check banner
+                SanityCheckBanner(
+                    isSanityChecking: isSanityChecking,
+                    pendingSuggestions: pendingSuggestions,
+                    sanityCheckError: sanityCheckError,
+                    itemsChangedSinceCheck: itemsChangedSinceCheck,
+                    onAccept: onAcceptSuggestions,
+                    onReject: onRejectSuggestions,
+                    onDismissError: onDismissSanityError,
+                    onRecategorize: onRecategorize
+                )
+
+                // Sections
+                ForEach(sortedSections, id: \.self) { section in
+                    if let sectionItems = groupedItems[section], !sectionItems.isEmpty {
+                        GrocerySectionView(
+                            sectionName: section,
+                            items: sectionItems,
+                            settlingItemIDs: settlingItemIDs,
+                            onToggle: { item in toggleItem(item) },
+                            onDelete: { item in deleteItem(item) },
+                            onRename: { item, newName in renameItem(item, to: newName) },
+                            onRecategorize: { item, newCategory in recategorizeItem(item, to: newCategory) }
+                        )
                     }
-                    Button {
-                        showHistory = true
-                    } label: {
-                        Label("History", systemImage: "clock.arrow.circlepath")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
+
+                // Add item button
+                AddItemButton { addItem() }
             }
+            .padding()
         }
-        .sheet(isPresented: $showHistory) {
-            HistoryView(onSelect: { _ in showHistory = false })
-        }
+        .background(Color(.systemGroupedBackground))
     }
 
-    // MARK: - Sanity Banner
+    // MARK: - Grouping & Sorting
 
-    @ViewBuilder
-    private var sanityBannerSection: some View {
-        switch sanityState {
-        case .idle:
-            EmptyView()
-        case .checking:
-            Section {
-                SanityCheckBanner(state: .checking)
-            }
-            .listRowSeparator(.hidden)
-        case .error(let msg):
-            Section {
-                SanityCheckBanner(state: .error(msg, onDismiss: {
-                    sanityState = .idle
-                }, onRetry: nil))
-            }
-            .listRowSeparator(.hidden)
-        case .suggestions(let suggestions):
-            Section {
-                SanityCheckBanner(state: .suggestions(suggestions, onAccept: {
-                    acceptSuggestions(suggestions)
-                }, onDismiss: {
-                    sanityState = .idle
-                }))
-            }
-            .listRowSeparator(.hidden)
+    /// Items grouped by category.
+    private var groupedItems: [String: [GroceryItem]] {
+        Dictionary(grouping: items, by: \.category)
+    }
+
+    /// Section ordering: known sections first (in store order), then dynamic alphabetically, then "Other".
+    private var sortedSections: [String] {
+        let allCategories = Set(items.map(\.category))
+
+        let known = StoreSections.sectionOrder.filter { section in
+            section != "Other" && allCategories.contains(section)
         }
+
+        let dynamic = allCategories
+            .filter { !StoreSections.sectionOrder.contains($0) }
+            .sorted()
+
+        let other: [String] = allCategories.contains("Other") ? ["Other"] : []
+
+        return known + dynamic + other
     }
 
     // MARK: - Actions
 
     private func toggleItem(_ item: GroceryItem) {
-        item.isChecked.toggle()
-        session.updatedAt = Date()
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+
+        if !item.isChecked {
+            // Checking: add to settling set, remove after delay
+            settlingItemIDs.insert(item.id)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    settlingItemIDs.remove(item.id)
+                }
+            }
+        } else {
+            // Unchecking: remove from settling immediately
+            settlingItemIDs.remove(item.id)
+        }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            items[index].isChecked.toggle()
+        }
     }
 
     private func deleteItem(_ item: GroceryItem) {
-        modelContext.delete(item)
-        session.updatedAt = Date()
+        withAnimation {
+            items.removeAll { $0.id == item.id }
+        }
     }
 
-    private func renameItem(_ item: GroceryItem, _ newName: String) {
-        item.name = newName
-        item.category = StoreSections.categorizeItem(newName)
-        session.updatedAt = Date()
+    private func renameItem(_ item: GroceryItem, to newName: String) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[index].name = newName
+        items[index].category = StoreSections.categorizeItem(newName)
     }
 
-    private func recategorizeItem(_ item: GroceryItem, _ newCategory: String) {
-        item.category = newCategory
-        session.updatedAt = Date()
+    private func recategorizeItem(_ item: GroceryItem, to newCategory: String) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[index].category = newCategory
     }
 
     private func addItem() {
-        let item = GroceryItem(name: "New item", category: "Other", sortOrder: session.itemCount)
-        session.items.append(item)
-        session.updatedAt = Date()
-    }
-
-    private func renameSession(_ name: String) {
-        session.name = name
-        session.updatedAt = Date()
-    }
-
-    private func acceptSuggestions(_ suggestions: [CategorySuggestion]) {
-        for suggestion in suggestions {
-            if let item = session.items.first(where: { $0.id == suggestion.id }) {
-                item.category = suggestion.to
-            }
+        let newItem = GroceryItem(name: "New item", category: "Other")
+        withAnimation {
+            items.append(newItem)
         }
-        session.updatedAt = Date()
-        sanityState = .idle
     }
 }

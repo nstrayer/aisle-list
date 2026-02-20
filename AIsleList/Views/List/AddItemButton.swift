@@ -7,14 +7,16 @@ struct AddItemButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: "plus")
+                    .font(.body)
                 Text("Add item")
+                    .font(.body)
             }
-            .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity)
-            .padding(12)
+            .padding(14)
+            .foregroundStyle(.secondary)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
                     .foregroundStyle(Color(.systemGray4))
             )
         }

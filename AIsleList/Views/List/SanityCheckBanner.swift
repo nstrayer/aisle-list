@@ -1,106 +1,143 @@
 import SwiftUI
 
 struct SanityCheckBanner: View {
-    enum State {
-        case checking
-        case error(String, onDismiss: () -> Void, onRetry: (() -> Void)?)
-        case suggestions([CategorySuggestion], onAccept: () -> Void, onDismiss: () -> Void)
-    }
+    let isSanityChecking: Bool
+    let pendingSuggestions: [CategorySuggestion]
+    let sanityCheckError: String?
+    let itemsChangedSinceCheck: Bool
+    let onAccept: () -> Void
+    let onReject: () -> Void
+    let onDismissError: () -> Void
+    let onRecategorize: () -> Void
 
-    let state: State
-
-    @SwiftUI.State private var isExpanded = false
+    @State private var isExpanded = false
 
     var body: some View {
-        switch state {
-        case .checking:
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Refining categories...")
-                    .font(.subheadline)
-            }
-            .foregroundStyle(.blue)
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.blue.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-
-        case .error(let message, let onDismiss, let onRetry):
-            HStack {
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundStyle(.red)
-                Spacer()
-                if let onRetry {
-                    Button("Retry", action: onRetry)
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.red)
+        VStack(spacing: 8) {
+            // Spinner while checking
+            if isSanityChecking {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Refining categories...")
+                        .font(.subheadline)
+                        .foregroundStyle(.blue)
                 }
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.caption)
-                }
-                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Color.blue.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .padding(12)
-            .background(Color.red.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
 
-        case .suggestions(let suggestions, let onAccept, let onDismiss):
-            VStack(alignment: .leading, spacing: 8) {
+            // Error banner
+            if let error = sanityCheckError {
                 HStack {
-                    Button {
-                        withAnimation { isExpanded.toggle() }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.right")
-                                .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                                .font(.caption)
-                            Text("AI suggests \(suggestions.count) category change\(suggestions.count == 1 ? "" : "s")")
-                                .font(.subheadline.weight(.medium))
-                        }
-                    }
-                    .buttonStyle(.plain)
-
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
                     Spacer()
-
-                    Button("Accept", action: onAccept)
-                        .font(.caption.bold())
-                        .buttonStyle(.borderedProminent)
-                        .tint(.orange)
-                        .controlSize(.small)
-
-                    Button("Dismiss", action: onDismiss)
-                        .font(.caption)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                }
-
-                if isExpanded {
-                    ForEach(suggestions) { suggestion in
-                        HStack(spacing: 4) {
-                            Text(suggestion.name)
-                                .fontWeight(.medium)
-                            Text(suggestion.from)
-                                .foregroundStyle(.orange)
-                            Image(systemName: "arrow.right")
-                                .font(.caption2)
-                            Text(suggestion.to)
-                                .fontWeight(.medium)
-                        }
-                        .font(.caption)
+                    Button(action: onDismissError) {
+                        Image(systemName: "xmark")
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
                 }
+                .padding(12)
+                .background(Color.red.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .foregroundStyle(.orange)
-            .padding(12)
-            .background(Color.orange.opacity(0.08))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.orange.opacity(0.3))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            // Pending suggestions
+            if !pendingSuggestions.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Button {
+                            withAnimation { isExpanded.toggle() }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2.bold())
+                                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                                Text("AI suggests \(pendingSuggestions.count) category change\(pendingSuggestions.count == 1 ? "" : "s")")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .foregroundStyle(.orange)
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        HStack(spacing: 8) {
+                            Button("Accept", action: onAccept)
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.orange)
+                                .foregroundStyle(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                            Button("Dismiss", action: onReject)
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color(.systemGray5))
+                                .foregroundStyle(.secondary)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                    }
+                    .padding(12)
+
+                    if isExpanded {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(pendingSuggestions) { suggestion in
+                                HStack(spacing: 4) {
+                                    Text(suggestion.name + ":")
+                                        .fontWeight(.medium)
+                                    Text(suggestion.from)
+                                        .foregroundStyle(.orange.opacity(0.8))
+                                    Image(systemName: "arrow.right")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange.opacity(0.6))
+                                    Text(suggestion.to)
+                                        .fontWeight(.medium)
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
+                    }
+                }
+                .background(Color.orange.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                )
+            }
+
+            // Re-categorize button
+            if (itemsChangedSinceCheck || sanityCheckError != nil) && !isSanityChecking {
+                Button(action: onRecategorize) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.subheadline)
+                        Text("Re-categorize items with AI")
+                            .font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(10)
+                    .background(Color.blue.opacity(0.08))
+                    .foregroundStyle(.blue)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }
