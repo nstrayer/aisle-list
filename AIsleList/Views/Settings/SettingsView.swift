@@ -6,8 +6,11 @@ struct SettingsView: View {
     @State private var showChangeKey = false
     @State private var newKey = ""
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.authService) private var authService
 
     private let keychainKey = "anthropic_api_key"
+
+    private var isAuthMode: Bool { authService != nil }
 
     var body: some View {
         NavigationStack {
@@ -16,24 +19,10 @@ struct SettingsView: View {
                     Toggle("Dark Mode", isOn: $prefersDarkMode)
                 }
 
-                Section("API Key") {
-                    if maskedKey.isEmpty {
-                        Text("No API key saved")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(maskedKey)
-                            .font(.system(.body, design: .monospaced))
-                    }
-
-                    Button("Change Key") {
-                        newKey = ""
-                        showChangeKey = true
-                    }
-
-                    Button("Remove Key", role: .destructive) {
-                        KeychainHelper.delete(key: keychainKey)
-                        maskedKey = ""
-                    }
+                if isAuthMode {
+                    accountSection
+                } else {
+                    apiKeySection
                 }
 
                 Section("About") {
@@ -65,10 +54,64 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .onAppear {
-                loadMaskedKey()
+                if !isAuthMode {
+                    loadMaskedKey()
+                }
             }
         }
     }
+
+    // MARK: - Account Section (Supabase auth mode)
+
+    @ViewBuilder
+    private var accountSection: some View {
+        Section("Account") {
+            if let auth = authService as? SupabaseAuthService,
+               case .signedIn(let userId) = auth.authState {
+                HStack {
+                    Text("Signed in")
+                    Spacer()
+                    Text(String(userId.prefix(8)) + "...")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+            }
+
+            Button("Sign Out", role: .destructive) {
+                Task {
+                    try? await authService?.signOut()
+                    dismiss()
+                }
+            }
+        }
+    }
+
+    // MARK: - API Key Section (BYOK mode)
+
+    @ViewBuilder
+    private var apiKeySection: some View {
+        Section("API Key") {
+            if maskedKey.isEmpty {
+                Text("No API key saved")
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(maskedKey)
+                    .font(.system(.body, design: .monospaced))
+            }
+
+            Button("Change Key") {
+                newKey = ""
+                showChangeKey = true
+            }
+
+            Button("Remove Key", role: .destructive) {
+                KeychainHelper.delete(key: keychainKey)
+                maskedKey = ""
+            }
+        }
+    }
+
+    // MARK: - Helpers
 
     private func loadMaskedKey() {
         guard let data = KeychainHelper.load(key: keychainKey),
@@ -86,8 +129,4 @@ struct SettingsView: View {
         let suffix = String(key.suffix(4))
         return "\(prefix)...\(suffix)"
     }
-}
-
-#Preview {
-    SettingsView()
 }
