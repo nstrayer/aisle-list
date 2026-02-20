@@ -1,11 +1,11 @@
 import SwiftUI
 
-private struct GroceryAnalysisServiceKey: EnvironmentKey {
-    static let defaultValue: GroceryAnalysisService = DirectAnthropicService(apiKey: "")
+struct GroceryAnalysisServiceKey: EnvironmentKey {
+    static let defaultValue: (any GroceryAnalysisService)? = nil
 }
 
 extension EnvironmentValues {
-    var groceryAnalysisService: GroceryAnalysisService {
+    var analysisService: (any GroceryAnalysisService)? {
         get { self[GroceryAnalysisServiceKey.self] }
         set { self[GroceryAnalysisServiceKey.self] = newValue }
     }

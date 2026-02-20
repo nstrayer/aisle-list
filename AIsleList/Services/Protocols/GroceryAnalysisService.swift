@@ -1,9 +1,12 @@
 import Foundation
 
-protocol GroceryAnalysisService {
-    /// Analyzes a photo of a handwritten grocery list and returns identified sections.
-    func analyzeImage(base64: String, mediaType: String) async throws -> [GrocerySection]
+struct ItemCategoryPair: Codable {
+    let id: String
+    let name: String
+    let category: String
+}
 
-    /// Reviews item categorizations and returns corrected assignments.
-    func sanityCheckCategories(items: [(id: String, name: String, category: String)]) async throws -> [(id: String, name: String, category: String)]
+protocol GroceryAnalysisService {
+    func analyzeImage(_ imageBase64: String, mediaType: String) async throws -> [GrocerySection]
+    func sanityCheckCategories(_ items: [ItemCategoryPair]) async throws -> [ItemCategoryPair]
 }
