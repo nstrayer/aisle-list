@@ -210,7 +210,7 @@ enum StoreSections {
         for unit in name.utf16 {
             hash = (hash &+ Int(unit)) &* 31
         }
-        let index = abs(hash) % dynamicSectionColors.count
+        let index = Int(hash.magnitude % UInt(dynamicSectionColors.count))
         return dynamicSectionColors[index]
     }
 
