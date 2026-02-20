@@ -3,7 +3,7 @@ import SwiftData
 
 @Model
 final class GroceryItem {
-    @Attribute(.unique) var id: String
+    var id: String
     var name: String
     var category: String
     var isChecked: Bool

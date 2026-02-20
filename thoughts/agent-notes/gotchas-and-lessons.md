@@ -10,6 +10,16 @@ The fix was to:
 1. Remove CloudKit entitlements from `AIsleList.entitlements` (now empty)
 2. Use explicit `ModelContainer` init with `fatalError` on failure instead of the `.modelContainer(for:)` SwiftUI modifier (which hides initialization errors)
 
+## CloudKit Model Compatibility
+
+**CloudKit does not support `@Attribute(.unique)`.** Using it causes silent sync failures -- no errors, data just doesn't sync across devices. Removed `.unique` from `GroceryItem.id`.
+
+Full CloudKit requirements for SwiftData models:
+- No `@Attribute(.unique)` on any property
+- All properties must have defaults or be optional
+- All relationships must be optional
+- `@Attribute(.externalStorage)` is fine (stores as CKAsset)
+
 ## SwiftData Persistence
 
 Always call `modelContext.save()` explicitly after creating/modifying objects. The convenience auto-save behavior is not reliable in all scenarios. Fixed in commit `71cbf4d`.

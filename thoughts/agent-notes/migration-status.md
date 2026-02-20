@@ -23,6 +23,10 @@ Branch: `feature/swiftui-migration`
 | 1.13 | App ViewModel + navigation | `ViewModels/AppViewModel.swift`, `ContentView.swift` |
 | 1.14 | Network monitor | `Utilities/NetworkMonitor.swift` |
 
+### Info.plist Expansion (uncommitted)
+
+Info.plist was expanded from just camera/photo usage descriptions to full bundle configuration: `CFBundleDisplayName` ("AIsle List"), version 1.0.0 (build 1), portrait-only orientation (`UISupportedInterfaceOrientations`), and empty `UILaunchScreen`. This change is staged but not yet committed.
+
 ### Documentation Updates
 
 - Added iOS App section to CLAUDE.md with build system, data layer, services, and navigation details (commit 0b4578a)
@@ -31,11 +35,15 @@ Branch: `feature/swiftui-migration`
 - Created agent-notes files: project-overview, ios-app-structure, migration-status, gotchas-and-lessons, next-steps (commit b93a2e8)
 - Slimmed CLAUDE.md to defer detail to agent-notes (commit 2d3d740)
 
+### CloudKit Compatibility Fix
+
+- Removed `@Attribute(.unique)` from `GroceryItem.id` -- CloudKit does not support unique constraints and this causes silent sync failures (no errors, data just doesn't sync). See `gotchas-and-lessons.md` for full CloudKit model requirements.
+
 ### Not Yet Done
 
 | Task | Description | Notes |
 |------|-------------|-------|
-| 1.15 | CloudKit configuration | Blocked: need iCloud container created in Apple Developer portal first. Entitlements file is empty intentionally. |
+| 1.15 | CloudKit configuration | Blocked: need iCloud container created in Xcode (auto-registers in portal). Steps: add iCloud capability, enable CloudKit, create container `iCloud.com.aislelist.app`, add Background Modes with Remote notifications. No code changes needed. |
 
 ### abs() Overflow Fix (commit f899314)
 
