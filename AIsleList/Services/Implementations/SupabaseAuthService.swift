@@ -8,11 +8,13 @@ final class SupabaseAuthService: AuthService {
     private(set) var authState: AuthState = .unknown
 
     private let client: SupabaseClient
+    let baseURL: URL
 
     init?(urlString: String, anonKey: String) {
         guard let url = URL(string: urlString), !anonKey.isEmpty else {
             return nil
         }
+        self.baseURL = url
         self.client = SupabaseClient(supabaseURL: url, supabaseKey: anonKey)
     }
 
@@ -52,5 +54,7 @@ final class SupabaseAuthService: AuthService {
 
     // MARK: - Supabase Client Access
 
-    var supabaseClient: SupabaseClient { client }
+    var functionsBaseURL: URL {
+        baseURL.appendingPathComponent("functions/v1")
+    }
 }

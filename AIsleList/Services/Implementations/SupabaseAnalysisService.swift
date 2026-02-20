@@ -81,8 +81,8 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
             throw SupabaseAnalysisError.notAuthenticated
         }
 
-        let url = authService.supabaseClient.supabaseURL
-            .appendingPathComponent("functions/v1/analyze-grocery-list")
+        let url = authService.functionsBaseURL
+            .appendingPathComponent("analyze-grocery-list")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
