@@ -102,6 +102,7 @@ final class AppViewModel {
         }
 
         modelContext.insert(session)
+        try? modelContext.save()
         currentSession = session
         currentRoute = .list(session)
     }
