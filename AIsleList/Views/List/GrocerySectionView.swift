@@ -4,6 +4,7 @@ struct GrocerySectionView: View {
     let sectionName: String
     let items: [GroceryItem]
     let settlingItemIDs: Set<String>
+    let allSectionNames: [String]
     let onToggle: (GroceryItem) -> Void
     let onDelete: (GroceryItem) -> Void
     let onRename: (GroceryItem, String) -> Void
@@ -22,8 +23,8 @@ struct GrocerySectionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Section header
-            HStack {
+            // Section header with colored background
+            HStack(spacing: 8) {
                 Text(sectionName)
                     .font(.headline)
                     .foregroundStyle(style.text)
@@ -32,11 +33,16 @@ struct GrocerySectionView: View {
                     .background(style.background)
                     .clipShape(Capsule())
 
-                Spacer()
+                // Item count badge
+                Text("\(items.count)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(style.text)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(style.background)
+                    .clipShape(Capsule())
 
-                Text("\(items.filter { !$0.isChecked }.count) left")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Spacer()
             }
 
             Divider()
@@ -47,10 +53,11 @@ struct GrocerySectionView: View {
                 GroceryItemRow(
                     item: item,
                     sectionStyle: style,
+                    allSectionNames: allSectionNames,
                     onToggle: { onToggle(item) },
                     onDelete: { onDelete(item) },
                     onRename: { newName in onRename(item, newName) },
-                    onRecategorize: { newCategory in onRecategorize(item, newCategory) }
+                    onRecategorize: { newCat in onRecategorize(item, newCat) }
                 )
             }
         }

@@ -29,7 +29,7 @@ struct SanityCheckBanner: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
 
-            // Error banner
+            // Error banner with dismiss + re-categorize retry
             if let error = sanityCheckError {
                 HStack {
                     Text(error)
@@ -47,12 +47,14 @@ struct SanityCheckBanner: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
 
-            // Pending suggestions
+            // Pending suggestions with expandable list
             if !pendingSuggestions.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
                         Button {
-                            withAnimation { isExpanded.toggle() }
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isExpanded.toggle()
+                            }
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "chevron.right")
@@ -69,21 +71,22 @@ struct SanityCheckBanner: View {
 
                         HStack(spacing: 8) {
                             Button("Accept", action: onAccept)
-                                .font(.caption.weight(.medium))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
                                 .background(Color.orange)
                                 .foregroundStyle(.white)
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
                             Button("Dismiss", action: onReject)
-                                .font(.caption.weight(.medium))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Color(.systemGray5))
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color(.tertiarySystemFill))
                                 .foregroundStyle(.secondary)
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
+                        .buttonStyle(.plain)
                     }
                     .padding(12)
 
@@ -117,7 +120,7 @@ struct SanityCheckBanner: View {
                 )
             }
 
-            // Re-categorize button
+            // Re-categorize button when items changed since last check or previous check failed
             if (itemsChangedSinceCheck || sanityCheckError != nil) && !isSanityChecking {
                 Button(action: onRecategorize) {
                     HStack(spacing: 6) {

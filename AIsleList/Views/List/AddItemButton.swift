@@ -16,8 +16,8 @@ struct AddItemButton: View {
             .foregroundStyle(.secondary)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
-                    .foregroundStyle(Color(.systemGray4))
+                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                    .foregroundStyle(Color(.separator))
             )
         }
         .buttonStyle(.plain)

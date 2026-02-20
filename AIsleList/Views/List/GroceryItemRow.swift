@@ -3,6 +3,7 @@ import SwiftUI
 struct GroceryItemRow: View {
     let item: GroceryItem
     let sectionStyle: StoreSections.SectionStyle
+    let allSectionNames: [String]
     let onToggle: () -> Void
     let onDelete: () -> Void
     let onRename: (String) -> Void
@@ -11,21 +12,14 @@ struct GroceryItemRow: View {
     @State private var isEditing = false
     @State private var editValue = ""
     @State private var checkboxScale: CGFloat = 1.0
+    @State private var showCustomSectionAlert = false
+    @State private var customSectionName = ""
+    @FocusState private var editFieldFocused: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            // Checkbox
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                    checkboxScale = 1.3
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        checkboxScale = 1.0
-                    }
-                }
-                onToggle()
-            }) {
+            // Checkbox with spring animation
+            Button(action: handleToggle) {
                 Image(systemName: item.isChecked ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(item.isChecked ? sectionStyle.text : Color(.systemGray3))
@@ -34,23 +28,27 @@ struct GroceryItemRow: View {
             .buttonStyle(.plain)
             .frame(minWidth: 44, minHeight: 44)
 
-            // Name (editable) or text field
+            // Name: editable text field or display
             if isEditing {
-                TextField("Item name", text: $editValue, onCommit: saveEdit)
+                TextField("Item name", text: $editValue, onCommit: commitEdit)
                     .textFieldStyle(.roundedBorder)
-                    .onAppear { editValue = item.name }
+                    .focused($editFieldFocused)
+                    .onAppear {
+                        editValue = item.name
+                        editFieldFocused = true
+                    }
             } else {
                 HStack(spacing: 6) {
                     Text(item.name)
                         .strikethrough(item.isChecked)
                         .foregroundStyle(item.isChecked ? .secondary : .primary)
 
-                    // Category badge
+                    // Category badge (caption2 capsule)
                     Text(item.category)
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(.systemGray6))
+                        .background(Color(.tertiarySystemFill))
                         .foregroundStyle(.secondary)
                         .clipShape(Capsule())
                 }
@@ -66,26 +64,27 @@ struct GroceryItemRow: View {
         .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(item.isChecked ? Color(.systemGray6) : Color(.systemBackground))
+                .fill(item.isChecked ? Color(.secondarySystemFill) : Color(.systemBackground))
         )
         .overlay(
-            // Left accent border
-            HStack {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(sectionStyle.border)
-                    .frame(width: 4)
-                Spacer()
-            }
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color(.separator), lineWidth: 0.5)
         )
+        .overlay(alignment: .leading) {
+            // Left accent border
+            sectionStyle.border
+                .frame(width: 4)
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 8, bottomLeadingRadius: 8))
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")
             }
         }
         .contextMenu {
-            // Recategorize via context menu
-            Menu("Move to Section") {
-                ForEach(StoreSections.sectionOrder, id: \.self) { section in
+            // All known + dynamic sections for recategorization
+            Section("Move to section") {
+                ForEach(allSectionNames, id: \.self) { section in
                     Button {
                         onRecategorize(section)
                     } label: {
@@ -96,13 +95,48 @@ struct GroceryItemRow: View {
                         }
                     }
                 }
+
+                Divider()
+
+                Button {
+                    customSectionName = ""
+                    showCustomSectionAlert = true
+                } label: {
+                    Label("Custom section...", systemImage: "tag")
+                }
             }
+        }
+        .alert("Custom Section", isPresented: $showCustomSectionAlert) {
+            TextField("Section name", text: $customSectionName)
+            Button("Cancel", role: .cancel) {}
+            Button("Move") {
+                let trimmed = customSectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    onRecategorize(trimmed)
+                }
+            }
+        } message: {
+            Text("Enter a custom section name for this item.")
         }
     }
 
-    private func saveEdit() {
+    // MARK: - Actions
+
+    private func handleToggle() {
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+            checkboxScale = 1.3
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                checkboxScale = 1.0
+            }
+        }
+        onToggle()
+    }
+
+    private func commitEdit() {
         let trimmed = editValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty && trimmed != item.name {
+        if !trimmed.isEmpty {
             onRename(trimmed)
         }
         isEditing = false
