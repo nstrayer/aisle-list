@@ -43,6 +43,7 @@ Info.plist expanded from camera/photo usage descriptions to full bundle configur
 - Updated agent notes for decode closure overload (commit c1a628b)
 - Updated agent notes for FunctionsError handling pattern (commit e2f35f7)
 - Updated agent notes for JWT gateway issue, 401 handling, and recent fixes (commit 6b1e965)
+- Updated agent notes for error handling and alert placement review fixes (commit 8827fef)
 
 ### CloudKit Compatibility Fix
 
@@ -113,19 +114,17 @@ Several robustness improvements across the Supabase integration:
 - **Supabase Swift SDK** (`supabase-swift` >= 2.0.0) added to `project.yml` as SPM package
 - Edge function uses `@supabase/supabase-js@2` via esm.sh (Deno)
 
-### Manual Steps Required
+### Manual Steps -- ALL COMPLETE
 
-Before the Supabase path works, you need to:
+All manual setup steps have been completed:
 
-1. **Create a Supabase project** at https://supabase.com/dashboard
-2. **Run the migration**: `supabase db push` or apply `001_initial.sql` via SQL editor
-3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list --no-verify-jwt` (required -- see `thoughts/supabase-jwt-gateway-issue.md`)
-4. **Set edge function secret**: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
-5. **Enable Apple auth** in Supabase dashboard (Authentication > Providers > Apple)
-6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a): `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `project.yml` info properties
-7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
-
-Note: Since `SUPABASE_URL` and `SUPABASE_ANON_KEY` are now baked into `project.yml` (step 6), the app will attempt auth mode on any build generated from this config. BYOK fallback only occurs if the failable `SupabaseAuthService` init fails (e.g., invalid URL or empty key). Steps 1-5 and 7 are still required for auth mode to actually function end-to-end.
+1. ~~**Create a Supabase project**~~ -- DONE
+2. ~~**Run the migration**~~ -- DONE
+3. ~~**Deploy the edge function**~~ -- DONE (with `--no-verify-jwt` -- see `thoughts/supabase-jwt-gateway-issue.md`)
+4. ~~**Set edge function secret**~~ -- DONE
+5. ~~**Enable Apple auth**~~ -- DONE
+6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a)
+7. ~~**Regenerate Xcode project**~~ -- DONE
 
 ### Auth Routing Race + Validation Fix (commit 7891258)
 
@@ -208,19 +207,21 @@ Refactored `invokeFunction()` error handling to properly catch non-2xx HTTP erro
 **Changes**:
 - Wrapped entire `functions.invoke()` call in do/catch
 - `catch FunctionsError` block parses error body from `FunctionsError.httpError(code:data:)`
+- 401 -> `SupabaseAnalysisError.notAuthenticated` (checked first, before JSON parsing -- no body needed)
 - 403 with `"scan_limit_reached"` -> `SupabaseAnalysisError.scanLimitReached`
-- 401 -> `SupabaseAnalysisError.notAuthenticated` (new)
 - Other errors with JSON body -> `SupabaseAnalysisError.serverError(msg)`
 - Fallback -> `SupabaseAnalysisError.serverError("HTTP \(code)")`
-- Separate `catch SupabaseAnalysisError` and `catch AnalysisError` blocks re-throw typed errors
+- No explicit catch-and-rethrow blocks for `SupabaseAnalysisError` or `AnalysisError` -- typed errors thrown inside the `do` block propagate naturally
 
 ### SupabaseAuthService Properties Made Private
 
 `baseURL` and `anonKey` changed from internal to `private`. After SDK `functions.invoke()` migration, nothing external needs these values.
 
-### SettingsView Sign-Out Error Alert (commit 7db3ad0)
+### SettingsView Sign-Out Error Alert (commit 7db3ad0, placement fixed in 8827fef)
 
 `SettingsView` sign-out was using `try? await authService?.signOut()` which silently swallowed errors. Changed to proper do/catch with a `@State private var signOutError: String?` that triggers an alert. The view only dismisses on successful sign-out.
+
+The "Sign Out Failed" `.alert` modifier was initially chained directly after the sign-out confirmation dialog. Commit 8827fef moved it to the correct position in the view hierarchy (after `.onAppear` and conditional content modifiers). In SwiftUI, alert placement matters -- alerts chained directly after another alert/dialog can have presentation issues. Attach alerts at the containing view scope for reliable presentation.
 
 ### Edge Function: --no-verify-jwt Deployment
 

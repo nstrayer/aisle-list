@@ -1,18 +1,8 @@
 # Next Steps
 
-## Immediate: Supabase Setup (Manual Steps)
+## Immediate: Phase 2 Cleanup
 
-Phase 2 code is written. These manual steps are needed to activate it:
-
-1. **Create a Supabase project** at https://supabase.com/dashboard
-2. **Run the migration**: `supabase db push` or apply `supabase/migrations/001_initial.sql` via SQL editor
-3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list --no-verify-jwt` (the `--no-verify-jwt` flag is required due to a gateway JWT rejection issue with new API key format; auth is still enforced via `getUser()` in the function body -- see `thoughts/supabase-jwt-gateway-issue.md`)
-4. **Set edge function secret**: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
-5. **Enable Apple auth** in Supabase dashboard (Authentication > Providers > Apple)
-6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a): `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `project.yml` info properties
-7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
-
-Note: Since `SUPABASE_URL` and `SUPABASE_ANON_KEY` are baked into `project.yml` (step 6), the app will attempt auth mode on any build. BYOK fallback only occurs if `SupabaseAuthService` init fails. Steps 1-5 and 7 are needed for auth mode to actually function.
+All manual Supabase setup steps are complete. The backend is live. Remaining Phase 2 work is code cleanup:
 
 ## Remaining Phase 2 Cleanup
 
