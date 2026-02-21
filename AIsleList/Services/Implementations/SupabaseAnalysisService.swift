@@ -80,26 +80,28 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
     private func invokeFunction(payload: [String: Any]) async throws -> [String: Any] {
         let bodyData = try JSONSerialization.data(withJSONObject: payload)
 
-        let response = try await client.functions.invoke(
+        let json: [String: Any] = try await client.functions.invoke(
             "analyze-grocery-list",
             options: .init(body: bodyData)
-        )
+        ) { data, response in
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw AnalysisError.decodingError
+            }
 
-        let json = try JSONSerialization.jsonObject(with: response) as? [String: Any]
-
-        guard let json else {
-            throw AnalysisError.decodingError
-        }
-
-        // Check for error responses embedded in the JSON
-        if let error = json["error"] as? String {
-            if error == "scan_limit_reached" {
+            // Check for HTTP-level errors the SDK didn't throw on
+            if response.statusCode == 403,
+               (json["error"] as? String) == "scan_limit_reached" {
                 throw SupabaseAnalysisError.scanLimitReached(
                     scansUsed: json["scansUsed"] as? Int ?? 0,
                     scanLimit: json["scanLimit"] as? Int ?? 3
                 )
             }
-            throw SupabaseAnalysisError.serverError(error)
+
+            if let error = json["error"] as? String {
+                throw SupabaseAnalysisError.serverError(error)
+            }
+
+            return json
         }
 
         return json
