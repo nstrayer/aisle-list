@@ -117,7 +117,7 @@ Before the Supabase path works, you need to:
 
 1. **Create a Supabase project** at https://supabase.com/dashboard
 2. **Run the migration**: `supabase db push` or apply `001_initial.sql` via SQL editor
-3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list`
+3. **Deploy the edge function**: `supabase functions deploy analyze-grocery-list --no-verify-jwt` (required -- see `thoughts/supabase-jwt-gateway-issue.md`)
 4. **Set edge function secret**: `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`
 5. **Enable Apple auth** in Supabase dashboard (Authentication > Providers > Apple)
 6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a): `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `project.yml` info properties
@@ -198,6 +198,35 @@ Replaced raw `URLSession` HTTP calls with the Supabase SDK's built-in `client.fu
 Refined `invokeFunction()` to use the decode closure overload of `functions.invoke()` instead of calling it and then separately deserializing the response.
 
 **Important**: In supabase-swift 2.41.1, the decode closure only runs for 2xx responses. Non-2xx responses throw `FunctionsError.httpError(code:data:)` before the closure executes. Error handling for HTTP failures (401, 403 scan_limit_reached, etc.) must happen in a `catch FunctionsError` block wrapping the `invoke` call, parsing the error body from the `data` parameter of `FunctionsError.httpError`.
+
+### FunctionsError Handling Refactor + 401 Support
+
+Refactored `invokeFunction()` error handling to properly catch non-2xx HTTP errors from the Supabase SDK. The decode closure only runs for 2xx responses; non-2xx throw `FunctionsError.httpError(code:data:)` before the closure executes.
+
+**Changes**:
+- Wrapped entire `functions.invoke()` call in do/catch
+- `catch FunctionsError` block parses error body from `FunctionsError.httpError(code:data:)`
+- 403 with `"scan_limit_reached"` -> `SupabaseAnalysisError.scanLimitReached`
+- 401 -> `SupabaseAnalysisError.notAuthenticated` (new)
+- Other errors with JSON body -> `SupabaseAnalysisError.serverError(msg)`
+- Fallback -> `SupabaseAnalysisError.serverError("HTTP \(code)")`
+- Separate `catch SupabaseAnalysisError` and `catch AnalysisError` blocks re-throw typed errors
+
+### SupabaseAuthService Properties Made Private
+
+`baseURL` and `anonKey` changed from internal to `private`. After SDK `functions.invoke()` migration, nothing external needs these values.
+
+### SettingsView Sign-Out Error Alert (commit 7db3ad0)
+
+`SettingsView` sign-out was using `try? await authService?.signOut()` which silently swallowed errors. Changed to proper do/catch with a `@State private var signOutError: String?` that triggers an alert. The view only dismisses on successful sign-out.
+
+### Edge Function: --no-verify-jwt Deployment
+
+The edge function must be deployed with `--no-verify-jwt` due to a Supabase API gateway JWT rejection issue (the gateway rejects valid session tokens, likely due to new API key format incompatibility). The function still validates auth via `supabase.auth.getUser()` inside the function body. See `thoughts/supabase-jwt-gateway-issue.md` for full analysis.
+
+### Info.plist Expansion (commit c39853e)
+
+`Resources/Info.plist` expanded from just camera/photo usage descriptions to full bundle configuration: `CFBundleDisplayName`, version strings, `CFBundlePackageType`, portrait-only orientation, empty `UILaunchScreen`, and `SUPABASE_URL`/`SUPABASE_ANON_KEY` keys baked directly into the plist.
 
 ### Not Yet Done
 

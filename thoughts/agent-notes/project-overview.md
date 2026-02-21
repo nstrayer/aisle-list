@@ -55,5 +55,6 @@ CLAUDE.md has a top-level "Agent Notes" section directing agents to read `though
 - StoreKit research: `thoughts/storekit2-research.md`
 - Subscription research: `thoughts/subscription-research.md`, `thoughts/subscription-and-ios-research.md`
 - iOS conversion rationale: `thoughts/ios-conversion-research.md`
+- Supabase JWT gateway issue: `thoughts/supabase-jwt-gateway-issue.md` (--no-verify-jwt workaround + root cause hypotheses)
 - Web app enhancement ideas: `ENHANCEMENT_RESEARCH.md` (root)
 - Web app pending TODOs: `TODO.md` (root) -- drag-drop categories, styling, animations

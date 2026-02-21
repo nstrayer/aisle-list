@@ -236,6 +236,24 @@ The decode closure is still useful for:
 
 **Dependency change**: `SupabaseAnalysisService` now takes a `SupabaseClient` directly (via `init(client:)`) instead of a `SupabaseAuthService` reference. `SupabaseAuthService` exposes `supabaseClient` for this purpose. This decouples the analysis service from the auth service -- it only needs the SDK client, not auth-specific details like tokens or URLs.
 
+## Supabase JWT Gateway Rejection (--no-verify-jwt)
+
+When calling the edge function from the iOS app, the Supabase API gateway returned `401 Invalid JWT` even though the JWT was a valid session token from Sign in with Apple. This happened at the gateway layer (before our function code ran).
+
+**Resolution**: Deploy with `supabase functions deploy analyze-grocery-list --no-verify-jwt`. The function still validates auth via `supabase.auth.getUser()` inside the function body -- security is equivalent.
+
+**Likely cause**: The project uses the new Supabase API key format (`sb_publishable_*`) instead of legacy JWT-based keys (`eyJ...`). The gateway's JWT verification may not support the newer format. The session tokens also use ES256 (asymmetric) signing, and the gateway may expect HS256.
+
+**Impact**: No security degradation. Invalid/expired tokens are still rejected by `getUser()` in the function. If Supabase fixes this, re-deploy without the flag to test. See `thoughts/supabase-jwt-gateway-issue.md` for full analysis.
+
+## SupabaseAnalysisError.notAuthenticated (401 Handling)
+
+The `FunctionsError.httpError` catch block in `SupabaseAnalysisService.invokeFunction()` now handles 401 responses by throwing `SupabaseAnalysisError.notAuthenticated`. This was added alongside the FunctionsError error handling refactor. The error type was already defined in the protocol but wasn't previously reachable because the old code didn't have a catch path for HTTP 401 from the SDK.
+
+## SupabaseAuthService Properties Are Private
+
+`baseURL` and `anonKey` on `SupabaseAuthService` were changed from internal to `private`. After the SDK `functions.invoke()` migration (commit 8625cee), nothing external needs these values -- the SDK handles headers automatically. Only `supabaseClient` (read-only computed) is exposed for passing to `SupabaseAnalysisService`.
+
 ## Anthropic API Integration
 
 - Analysis uses `claude-sonnet-4-5-20250929` with forced tool_choice
