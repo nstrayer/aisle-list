@@ -40,6 +40,7 @@ Info.plist expanded from camera/photo usage descriptions to full bundle configur
 - Marked Phase 1 complete, added commit refs to Phase 2 hardening section (commit 2e17840)
 - Updated agent notes for SettingsView dual-mode and prior commits (commit a3ccbac)
 - Updated agent notes for SDK functions.invoke() migration (commit 570015a)
+- Updated agent notes for decode closure overload (commit c1a628b)
 
 ### CloudKit Compatibility Fix
 
