@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 
 enum SupabaseAnalysisError: LocalizedError {
     case notAuthenticated
@@ -19,10 +20,10 @@ enum SupabaseAnalysisError: LocalizedError {
 
 final class SupabaseAnalysisService: GroceryAnalysisService {
 
-    private let authService: SupabaseAuthService
+    private let client: SupabaseClient
 
-    init(authService: SupabaseAuthService) {
-        self.authService = authService
+    init(client: SupabaseClient) {
+        self.client = client
     }
 
     // MARK: - Analyze Image
@@ -77,50 +78,31 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
     // MARK: - Private
 
     private func invokeFunction(payload: [String: Any]) async throws -> [String: Any] {
-        guard let token = authService.accessToken else {
-            print("[SupabaseAnalysis] accessToken is nil, authState: \(authService.authState)")
-            throw SupabaseAnalysisError.notAuthenticated
-        }
-        print("[SupabaseAnalysis] token present (\(token.prefix(20))...), calling edge function")
+        let bodyData = try JSONSerialization.data(withJSONObject: payload)
 
-        let url = authService.functionsBaseURL
-            .appendingPathComponent("analyze-grocery-list")
+        let response = try await client.functions.invoke(
+            "analyze-grocery-list",
+            options: .init(body: bodyData)
+        )
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(authService.anonKey, forHTTPHeaderField: "apikey")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        let json = try JSONSerialization.jsonObject(with: response) as? [String: Any]
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let http = response as? HTTPURLResponse else {
-            throw AnalysisError.apiError("Invalid response")
-        }
-
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let json else {
             throw AnalysisError.decodingError
         }
 
-        switch http.statusCode {
-        case 200...299:
-            return json
-        case 401:
-            print("[SupabaseAnalysis] server returned 401, body: \(json)")
-            throw SupabaseAnalysisError.notAuthenticated
-        case 403:
-            if (json["error"] as? String) == "scan_limit_reached" {
+        // Check for error responses embedded in the JSON
+        if let error = json["error"] as? String {
+            if error == "scan_limit_reached" {
                 throw SupabaseAnalysisError.scanLimitReached(
                     scansUsed: json["scansUsed"] as? Int ?? 0,
                     scanLimit: json["scanLimit"] as? Int ?? 3
                 )
             }
-            throw AnalysisError.apiError("Forbidden")
-        default:
-            let message = json["error"] as? String ?? "Unknown error"
-            throw SupabaseAnalysisError.serverError(message)
+            throw SupabaseAnalysisError.serverError(error)
         }
+
+        return json
     }
 }
 

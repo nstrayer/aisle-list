@@ -38,7 +38,7 @@ struct AIsleListApp: App {
             return
         }
         authService = auth
-        analysisService = SupabaseAnalysisService(authService: auth)
+        analysisService = SupabaseAnalysisService(client: auth.supabaseClient)
         Task {
             await auth.restoreSession()
         }

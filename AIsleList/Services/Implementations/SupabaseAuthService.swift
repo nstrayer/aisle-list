@@ -54,6 +54,8 @@ final class SupabaseAuthService: AuthService {
 
     // MARK: - Supabase Client Access
 
+    var supabaseClient: SupabaseClient { client }
+
     var functionsBaseURL: URL {
         baseURL.appendingPathComponent("functions/v1")
     }
