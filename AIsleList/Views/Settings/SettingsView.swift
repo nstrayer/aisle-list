@@ -5,6 +5,7 @@ struct SettingsView: View {
     @State private var maskedKey: String = ""
     @State private var showChangeKey = false
     @State private var newKey = ""
+    @State private var signOutError: String?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.authService) private var authService
 
@@ -53,6 +54,16 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
+            .alert("Sign Out Failed", isPresented: Binding(
+                get: { signOutError != nil },
+                set: { if !$0 { signOutError = nil } }
+            )) {
+                Button("OK") { signOutError = nil }
+            } message: {
+                if let error = signOutError {
+                    Text(error)
+                }
+            }
             .onAppear {
                 if !isAuthMode {
                     loadMaskedKey()
@@ -79,8 +90,12 @@ struct SettingsView: View {
 
             Button("Sign Out", role: .destructive) {
                 Task {
-                    try? await authService?.signOut()
-                    dismiss()
+                    do {
+                        try await authService?.signOut()
+                        dismiss()
+                    } catch {
+                        signOutError = error.localizedDescription
+                    }
                 }
             }
         }
