@@ -9,8 +9,8 @@ final class SupabaseAuthService: AuthService {
     private(set) var accessToken: String?
 
     private let client: SupabaseClient
-    let baseURL: URL
-    let anonKey: String
+    private let baseURL: URL
+    private let anonKey: String
 
     init?(urlString: String, anonKey: String) {
         guard let url = URL(string: urlString), !anonKey.isEmpty else {

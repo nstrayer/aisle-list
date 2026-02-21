@@ -80,31 +80,48 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
     private func invokeFunction(payload: [String: Any]) async throws -> [String: Any] {
         let bodyData = try JSONSerialization.data(withJSONObject: payload)
 
-        let json: [String: Any] = try await client.functions.invoke(
-            "analyze-grocery-list",
-            options: .init(body: bodyData)
-        ) { data, response in
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                throw AnalysisError.decodingError
-            }
+        do {
+            let json: [String: Any] = try await client.functions.invoke(
+                "analyze-grocery-list",
+                options: .init(body: bodyData)
+            ) { data, _ in
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    throw AnalysisError.decodingError
+                }
 
-            // Check for HTTP-level errors the SDK didn't throw on
-            if response.statusCode == 403,
-               (json["error"] as? String) == "scan_limit_reached" {
-                throw SupabaseAnalysisError.scanLimitReached(
-                    scansUsed: json["scansUsed"] as? Int ?? 0,
-                    scanLimit: json["scanLimit"] as? Int ?? 3
-                )
-            }
+                if let error = json["error"] as? String {
+                    throw SupabaseAnalysisError.serverError(error)
+                }
 
-            if let error = json["error"] as? String {
-                throw SupabaseAnalysisError.serverError(error)
+                return json
             }
-
             return json
+        } catch let error as FunctionsError {
+            // The SDK throws FunctionsError.httpError for non-2xx before the
+            // decode closure runs, so HTTP-level errors must be caught here.
+            if case .httpError(let code, let data) = error {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if code == 403, (json["error"] as? String) == "scan_limit_reached" {
+                        throw SupabaseAnalysisError.scanLimitReached(
+                            scansUsed: json["scansUsed"] as? Int ?? 0,
+                            scanLimit: json["scanLimit"] as? Int ?? 3
+                        )
+                    }
+                    if code == 401 {
+                        throw SupabaseAnalysisError.notAuthenticated
+                    }
+                    if let errorMsg = json["error"] as? String {
+                        throw SupabaseAnalysisError.serverError(errorMsg)
+                    }
+                }
+                throw SupabaseAnalysisError.serverError("HTTP \(code)")
+            }
+            throw error
+        } catch let error as SupabaseAnalysisError {
+            throw error
+        } catch let error as AnalysisError {
+            throw error
         }
-
-        return json
     }
 }
 
