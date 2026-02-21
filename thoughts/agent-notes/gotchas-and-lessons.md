@@ -174,9 +174,32 @@ The edge function's `validatePayload()` originally only checked that `sanity_che
 
 `SupabaseClient.supabaseURL` is an internal property of the Supabase Swift SDK -- not part of the public API. Accessing it compiled but could break on SDK updates. Instead, store the base URL yourself during init and derive any needed URLs from it.
 
-Pattern used: `SupabaseAuthService` stores `baseURL` (the raw URL passed to `SupabaseClient` init) and exposes a `functionsBaseURL` computed property (`baseURL.appendingPathComponent("functions/v1")`). `SupabaseAnalysisService` uses `authService.functionsBaseURL` instead of reaching through the client.
+Pattern used (now partially superseded by commit 8625cee): `SupabaseAuthService` stores `baseURL` and exposes `functionsBaseURL`. However, since `SupabaseAnalysisService` now uses the SDK's `client.functions.invoke()` (see below), `functionsBaseURL` is no longer used by the analysis service -- it only needs the `SupabaseClient` itself.
 
-General lesson: when wrapping a third-party SDK, store configuration values you need rather than reaching into the SDK's internal state. This keeps your code resilient to SDK version changes.
+General lesson: when wrapping a third-party SDK, store configuration values you need rather than reaching into the SDK's internal state. But also prefer using the SDK's built-in methods over reimplementing HTTP calls manually.
+
+## Supabase Edge Functions Require `apikey` Header (commit fc3739d, superseded by 8625cee)
+
+When calling Supabase edge functions directly via `URLRequest` (bypassing the SDK client), you must include **both**:
+- `Authorization: Bearer <jwt>` -- the user's access token
+- `apikey: <anon_key>` -- the project's anon key
+
+The `apikey` header is how Supabase's API gateway identifies the project. Without it, requests may be rejected before reaching the function. The Supabase client SDKs add this header automatically, but when making raw HTTP calls, you must add it manually.
+
+**This is now moot**: commit 8625cee switched `SupabaseAnalysisService` from raw `URLSession` to the SDK's `client.functions.invoke()`, which handles both headers automatically. The lesson still applies if you ever need to call Supabase endpoints outside the SDK.
+
+## Prefer SDK functions.invoke() Over Raw URLSession (commit 8625cee)
+
+`SupabaseAnalysisService` was previously making raw `URLSession` requests to the edge function URL, manually constructing headers (`Authorization`, `apikey`, `Content-Type`) and parsing HTTP status codes. This was error-prone (see the `apikey` header fix in fc3739d).
+
+Switched to `client.functions.invoke("analyze-grocery-list", options: .init(body: bodyData))`, which:
+- Handles auth headers automatically (JWT + apikey)
+- Returns the response body directly (no `HTTPURLResponse` to unwrap)
+- Simplifies error handling -- no HTTP status code switching needed
+
+The trade-off: error responses from the edge function are now embedded in the JSON body rather than surfaced via HTTP status codes. The `invokeFunction` method checks for an `error` field in the response JSON and maps known error strings (e.g., `scan_limit_reached`) to typed errors.
+
+**Dependency change**: `SupabaseAnalysisService` now takes a `SupabaseClient` directly (via `init(client:)`) instead of a `SupabaseAuthService` reference. `SupabaseAuthService` exposes `supabaseClient` for this purpose. This decouples the analysis service from the auth service -- it only needs the SDK client, not auth-specific details like tokens or URLs.
 
 ## Anthropic API Integration
 

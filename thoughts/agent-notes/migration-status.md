@@ -73,7 +73,7 @@ These were addressed in a prior commit:
 | 2.1 | Supabase project + schema | `supabase/migrations/001_initial.sql` (scan_usage, subscriptions tables with RLS), `supabase/config.toml` (local dev config, project_id: kroger-list) |
 | 2.2 | Edge function (API proxy) | `supabase/functions/analyze-grocery-list/index.ts` (Deno, JWT auth, subscription check, free tier 3 scans/month, dual action: analyze + sanity_check) |
 | 2.3 | Auth service | `Services/Protocols/AuthService.swift` (AuthState enum + protocol), `Services/Implementations/SupabaseAuthService.swift` (Sign in with Apple via Supabase), `Views/Auth/SignInView.swift` (Apple sign-in UI + nonce handling) |
-| 2.4 | Supabase analysis service | `Services/Implementations/SupabaseAnalysisService.swift` (calls edge function, handles scan limit errors via `SupabaseAnalysisError`) |
+| 2.4 | Supabase analysis service | `Services/Implementations/SupabaseAnalysisService.swift` (calls edge function via SDK `client.functions.invoke()`, takes `SupabaseClient` directly, handles scan limit errors via `SupabaseAnalysisError`) |
 | 2.5 | Integration | `AIsleListApp.swift` (auth/analysis service setup + environment injection), `ContentView.swift` (dual-mode: authModeContent vs byokModeContent), `ServiceEnvironmentKeys.swift` (added AuthServiceKey). BYOK kept as fallback when Supabase not configured via Info.plist detection. |
 
 ### Phase 2 Hardening (commits 6bcf987, 428a287)
@@ -130,12 +130,13 @@ Two fixes applied:
 
 2. **Edge function `sanity_check` item validation**: `validatePayload()` now validates each item in the `sanity_check` items array has string `id`, `name`, and `category` fields (previously only checked for non-empty array). Prevents malformed payloads from reaching the Anthropic API.
 
-### Supabase SDK Internal Property Fix (commit 281dcd5)
+### Supabase SDK Internal Property Fix (commit 281dcd5, partially reversed by 8625cee)
 
 `SupabaseAnalysisService` was accessing `authService.supabaseClient.supabaseURL` -- an internal property of the Supabase Swift SDK, not part of the public API. Fixed by:
 - `SupabaseAuthService` now stores `baseURL` during init and exposes `functionsBaseURL` (computed: `baseURL.appendingPathComponent("functions/v1")`)
 - `SupabaseAnalysisService` uses `authService.functionsBaseURL.appendingPathComponent("analyze-grocery-list")` instead of reaching through to `SupabaseClient`
-- The `supabaseClient` accessor on `SupabaseAuthService` was removed entirely -- no external code should access the raw client
+
+Note: commit 8625cee re-introduced `supabaseClient` on `SupabaseAuthService` -- but now it's passed to `SupabaseAnalysisService` at init time (not accessed to read internal properties). See the SDK invoke migration section below.
 
 ### Optional Session Access Fix (commit e93a833, superseded by 2d4a2b6)
 
@@ -163,6 +164,33 @@ Reverted `accessToken` from a computed property back to a stored `private(set) v
 - Extracted `accountSection` and `apiKeySection` as `@ViewBuilder` computed properties for clarity.
 - Only loads the masked API key on appear when in BYOK mode.
 - Removed `#Preview` block.
+
+### Edge Function apikey Header Fix (commit fc3739d, superseded by 8625cee)
+
+`SupabaseAnalysisService.invokeFunction()` was sending `Authorization: Bearer <token>` but missing the `apikey` header. Supabase's API gateway requires the anon key as an `apikey` header on all requests (the SDK adds it automatically, but raw `URLRequest` calls do not). Fixed by:
+- `SupabaseAuthService` now exposes `anonKey` as a public stored property (set during init)
+- `invokeFunction()` adds `request.setValue(authService.anonKey, forHTTPHeaderField: "apikey")`
+
+This fix was superseded by commit 8625cee, which switched to the SDK's `functions.invoke()` (handles all headers automatically).
+
+### SDK functions.invoke() Migration (commit 8625cee)
+
+Replaced raw `URLSession` HTTP calls with the Supabase SDK's built-in `client.functions.invoke()` in `SupabaseAnalysisService`. This was the culmination of iterative fixes to manual header management (apikey header in fc3739d, auth token in 2d4a2b6).
+
+**Changes**:
+- `SupabaseAnalysisService` now takes a `SupabaseClient` directly via `init(client:)` instead of a `SupabaseAuthService` reference
+- `SupabaseAuthService` re-exposes `supabaseClient` (a read-only computed property returning the internal `client`) so `AIsleListApp` can pass it to the analysis service at setup
+- `AIsleListApp.setupServices()` changed from `SupabaseAnalysisService(authService: auth)` to `SupabaseAnalysisService(client: auth.supabaseClient)`
+- `invokeFunction()` simplified: no more manual URL construction, header setup, or HTTP status code parsing
+- Error handling changed from HTTP-status-based (`401`/`403`/default) to JSON-field-based (checks for `error` key in response body)
+- `import Supabase` added to `SupabaseAnalysisService.swift` (now uses `SupabaseClient` type directly)
+
+**What was removed**:
+- Manual `URLRequest` construction (URL, method, headers, body)
+- `URLSession.shared.data(for:)` call
+- `HTTPURLResponse` status code switching (200/401/403/default)
+- Dependency on `authService.accessToken`, `authService.functionsBaseURL`, `authService.anonKey`
+- Debug print statements from fc3739d
 
 ### Not Yet Done
 

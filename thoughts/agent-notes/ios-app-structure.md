@@ -44,8 +44,8 @@ AIsleList/
       AuthService.swift             # Protocol: AuthState enum, signInWithApple, restoreSession, signOut
     Implementations/
       DirectAnthropicService.swift  # BYOK: raw URLSession to Anthropic API
-      SupabaseAuthService.swift     # Failable init?(urlString:anonKey:), stores baseURL, Sign in with Apple via Supabase, stored accessToken (set on sign-in/restore/sign-out), functionsBaseURL
-      SupabaseAnalysisService.swift # Calls edge function via authService.functionsBaseURL, handles scan limit errors
+      SupabaseAuthService.swift     # Failable init?(urlString:anonKey:), stores baseURL + anonKey, Sign in with Apple via Supabase, stored accessToken (set on sign-in/restore/sign-out), exposes supabaseClient
+      SupabaseAnalysisService.swift # Calls edge function via Supabase SDK client.functions.invoke(), takes SupabaseClient directly, handles scan limit errors
     Environment/
       ServiceEnvironmentKeys.swift  # SwiftUI environment injection (analysisService + authService)
   Utilities/
