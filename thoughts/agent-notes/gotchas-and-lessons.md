@@ -188,16 +188,38 @@ The `apikey` header is how Supabase's API gateway identifies the project. Withou
 
 **This is now moot**: commit 8625cee switched `SupabaseAnalysisService` from raw `URLSession` to the SDK's `client.functions.invoke()`, which handles both headers automatically. The lesson still applies if you ever need to call Supabase endpoints outside the SDK.
 
-## Prefer SDK functions.invoke() Over Raw URLSession (commit 8625cee)
+## Prefer SDK functions.invoke() Over Raw URLSession (commit 8625cee, refined in 50c95c7)
 
 `SupabaseAnalysisService` was previously making raw `URLSession` requests to the edge function URL, manually constructing headers (`Authorization`, `apikey`, `Content-Type`) and parsing HTTP status codes. This was error-prone (see the `apikey` header fix in fc3739d).
 
 Switched to `client.functions.invoke("analyze-grocery-list", options: .init(body: bodyData))`, which:
 - Handles auth headers automatically (JWT + apikey)
-- Returns the response body directly (no `HTTPURLResponse` to unwrap)
-- Simplifies error handling -- no HTTP status code switching needed
+- Simplifies error handling
 
-The trade-off: error responses from the edge function are now embedded in the JSON body rather than surfaced via HTTP status codes. The `invokeFunction` method checks for an `error` field in the response JSON and maps known error strings (e.g., `scan_limit_reached`) to typed errors.
+### Decode Closure Overload (commit 50c95c7)
+
+The initial `functions.invoke()` call returned raw `Data`, requiring a separate `JSONSerialization` step afterward. Commit 50c95c7 switched to the **decode closure overload**, which receives both the raw `Data` and the `HTTPURLResponse` in a trailing closure:
+
+```swift
+let json: [String: Any] = try await client.functions.invoke(
+    "analyze-grocery-list",
+    options: .init(body: bodyData)
+) { data, response in
+    guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        throw AnalysisError.decodingError
+    }
+    // Can check HTTP status codes here
+    if response.statusCode == 403, (json["error"] as? String) == "scan_limit_reached" { ... }
+    return json
+}
+```
+
+This is better than the previous two-step approach because:
+- Decoding and error checking happen in one place (the closure), not split across separate steps
+- HTTP status codes are accessible again via `response.statusCode`, enabling precise error differentiation (e.g., `403` for scan limit vs generic error strings)
+- The closure's return type is inferred as the generic parameter, so the result is already typed
+
+**Error handling is now hybrid**: checks HTTP status code first (403 for scan limit), then falls back to JSON `error` field for other server errors. This is more robust than purely JSON-field-based checking because it distinguishes HTTP-level errors from application-level ones.
 
 **Dependency change**: `SupabaseAnalysisService` now takes a `SupabaseClient` directly (via `init(client:)`) instead of a `SupabaseAuthService` reference. `SupabaseAuthService` exposes `supabaseClient` for this purpose. This decouples the analysis service from the auth service -- it only needs the SDK client, not auth-specific details like tokens or URLs.
 

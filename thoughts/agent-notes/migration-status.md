@@ -38,6 +38,8 @@ Info.plist expanded from camera/photo usage descriptions to full bundle configur
 - Updated agent notes for Supabase auth + analysis integration (commit 18fa2a7)
 - Updated agent notes for Phase 2 hardening changes (commit 428a287)
 - Marked Phase 1 complete, added commit refs to Phase 2 hardening section (commit 2e17840)
+- Updated agent notes for SettingsView dual-mode and prior commits (commit a3ccbac)
+- Updated agent notes for SDK functions.invoke() migration (commit 570015a)
 
 ### CloudKit Compatibility Fix
 
@@ -173,7 +175,7 @@ Reverted `accessToken` from a computed property back to a stored `private(set) v
 
 This fix was superseded by commit 8625cee, which switched to the SDK's `functions.invoke()` (handles all headers automatically).
 
-### SDK functions.invoke() Migration (commit 8625cee)
+### SDK functions.invoke() Migration (commit 8625cee, refined in 50c95c7)
 
 Replaced raw `URLSession` HTTP calls with the Supabase SDK's built-in `client.functions.invoke()` in `SupabaseAnalysisService`. This was the culmination of iterative fixes to manual header management (apikey header in fc3739d, auth token in 2d4a2b6).
 
@@ -181,16 +183,20 @@ Replaced raw `URLSession` HTTP calls with the Supabase SDK's built-in `client.fu
 - `SupabaseAnalysisService` now takes a `SupabaseClient` directly via `init(client:)` instead of a `SupabaseAuthService` reference
 - `SupabaseAuthService` re-exposes `supabaseClient` (a read-only computed property returning the internal `client`) so `AIsleListApp` can pass it to the analysis service at setup
 - `AIsleListApp.setupServices()` changed from `SupabaseAnalysisService(authService: auth)` to `SupabaseAnalysisService(client: auth.supabaseClient)`
-- `invokeFunction()` simplified: no more manual URL construction, header setup, or HTTP status code parsing
-- Error handling changed from HTTP-status-based (`401`/`403`/default) to JSON-field-based (checks for `error` key in response body)
+- `invokeFunction()` simplified: no more manual URL construction, header setup
 - `import Supabase` added to `SupabaseAnalysisService.swift` (now uses `SupabaseClient` type directly)
 
 **What was removed**:
 - Manual `URLRequest` construction (URL, method, headers, body)
 - `URLSession.shared.data(for:)` call
-- `HTTPURLResponse` status code switching (200/401/403/default)
 - Dependency on `authService.accessToken`, `authService.functionsBaseURL`, `authService.anonKey`
 - Debug print statements from fc3739d
+
+### Decode Closure Overload (commit 50c95c7)
+
+Refined `invokeFunction()` to use the decode closure overload of `functions.invoke()` instead of calling it and then separately deserializing the response. The closure receives both `Data` and `HTTPURLResponse`, so decoding and error checking happen in one place.
+
+Key improvement: HTTP status codes are accessible again via the closure's `response` parameter. Error handling is now hybrid -- checks `response.statusCode == 403` for scan limit errors (precise HTTP-level check), then falls back to JSON `error` field for other server errors. This is more robust than the previous purely JSON-field-based approach from 8625cee.
 
 ### Not Yet Done
 
