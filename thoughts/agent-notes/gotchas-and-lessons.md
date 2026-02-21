@@ -196,30 +196,43 @@ Switched to `client.functions.invoke("analyze-grocery-list", options: .init(body
 - Handles auth headers automatically (JWT + apikey)
 - Simplifies error handling
 
-### Decode Closure Overload (commit 50c95c7)
+### Decode Closure Overload (commit 50c95c7, error handling fixed later)
 
-The initial `functions.invoke()` call returned raw `Data`, requiring a separate `JSONSerialization` step afterward. Commit 50c95c7 switched to the **decode closure overload**, which receives both the raw `Data` and the `HTTPURLResponse` in a trailing closure:
+The initial `functions.invoke()` call returned raw `Data`, requiring a separate `JSONSerialization` step afterward. Commit 50c95c7 switched to the **decode closure overload**, which receives both the raw `Data` and the `HTTPURLResponse` in a trailing closure.
+
+**Important caveat**: In supabase-swift 2.41.1, the SDK's `FunctionsClient.rawInvoke` throws `FunctionsError.httpError(code:data:)` for non-2xx responses *before* the decode closure runs. This means `response.statusCode` checks inside the decode closure only see 2xx codes -- non-2xx error handling must happen in a `catch FunctionsError` block wrapping the `invoke` call.
+
+The current pattern:
 
 ```swift
-let json: [String: Any] = try await client.functions.invoke(
-    "analyze-grocery-list",
-    options: .init(body: bodyData)
-) { data, response in
-    guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-        throw AnalysisError.decodingError
+do {
+    let json: [String: Any] = try await client.functions.invoke(
+        "analyze-grocery-list",
+        options: .init(body: bodyData)
+    ) { data, _ in
+        // Only called for 2xx responses
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw AnalysisError.decodingError
+        }
+        if let error = json["error"] as? String {
+            throw SupabaseAnalysisError.serverError(error)
+        }
+        return json
     }
-    // Can check HTTP status codes here
-    if response.statusCode == 403, (json["error"] as? String) == "scan_limit_reached" { ... }
     return json
+} catch let error as FunctionsError {
+    // Non-2xx responses: parse error body from FunctionsError.httpError
+    if case .httpError(let code, let data) = error {
+        // Parse JSON body for typed errors (403 scan_limit_reached, 401, etc.)
+    }
+    throw error
 }
 ```
 
-This is better than the previous two-step approach because:
-- Decoding and error checking happen in one place (the closure), not split across separate steps
-- HTTP status codes are accessible again via `response.statusCode`, enabling precise error differentiation (e.g., `403` for scan limit vs generic error strings)
-- The closure's return type is inferred as the generic parameter, so the result is already typed
-
-**Error handling is now hybrid**: checks HTTP status code first (403 for scan limit), then falls back to JSON `error` field for other server errors. This is more robust than purely JSON-field-based checking because it distinguishes HTTP-level errors from application-level ones.
+The decode closure is still useful for:
+- Decoding the success response body
+- Checking for application-level error fields in 2xx responses
+- Typed return value (generic parameter inferred from closure)
 
 **Dependency change**: `SupabaseAnalysisService` now takes a `SupabaseClient` directly (via `init(client:)`) instead of a `SupabaseAuthService` reference. `SupabaseAuthService` exposes `supabaseClient` for this purpose. This decouples the analysis service from the auth service -- it only needs the SDK client, not auth-specific details like tokens or URLs.
 

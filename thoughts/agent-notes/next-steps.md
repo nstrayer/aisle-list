@@ -12,7 +12,7 @@ Phase 2 code is written. These manual steps are needed to activate it:
 6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a): `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `project.yml` info properties
 7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
 
-Until steps 1-5 and 7 are done, the app falls back to BYOK mode automatically.
+Note: Since `SUPABASE_URL` and `SUPABASE_ANON_KEY` are baked into `project.yml` (step 6), the app will attempt auth mode on any build. BYOK fallback only occurs if `SupabaseAuthService` init fails. Steps 1-5 and 7 are needed for auth mode to actually function.
 
 ## Remaining Phase 2 Cleanup
 

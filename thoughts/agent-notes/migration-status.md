@@ -123,7 +123,7 @@ Before the Supabase path works, you need to:
 6. ~~**Add to Info.plist**~~ -- DONE (commit 424e17a): `SUPABASE_URL` and `SUPABASE_ANON_KEY` added to `project.yml` info properties
 7. **Regenerate Xcode project**: `cd AIsleList && xcodegen generate`
 
-Until these steps are done, the app falls back to BYOK mode automatically.
+Note: Since `SUPABASE_URL` and `SUPABASE_ANON_KEY` are now baked into `project.yml` (step 6), the app will attempt auth mode on any build generated from this config. BYOK fallback only occurs if the failable `SupabaseAuthService` init fails (e.g., invalid URL or empty key). Steps 1-5 and 7 are still required for auth mode to actually function end-to-end.
 
 ### Auth Routing Race + Validation Fix (commit 7891258)
 
@@ -193,11 +193,11 @@ Replaced raw `URLSession` HTTP calls with the Supabase SDK's built-in `client.fu
 - Dependency on `authService.accessToken`, `authService.functionsBaseURL`, `authService.anonKey`
 - Debug print statements from fc3739d
 
-### Decode Closure Overload (commit 50c95c7)
+### Decode Closure Overload (commit 50c95c7, error handling fixed later)
 
-Refined `invokeFunction()` to use the decode closure overload of `functions.invoke()` instead of calling it and then separately deserializing the response. The closure receives both `Data` and `HTTPURLResponse`, so decoding and error checking happen in one place.
+Refined `invokeFunction()` to use the decode closure overload of `functions.invoke()` instead of calling it and then separately deserializing the response.
 
-Key improvement: HTTP status codes are accessible again via the closure's `response` parameter. Error handling is now hybrid -- checks `response.statusCode == 403` for scan limit errors (precise HTTP-level check), then falls back to JSON `error` field for other server errors. This is more robust than the previous purely JSON-field-based approach from 8625cee.
+**Important**: In supabase-swift 2.41.1, the decode closure only runs for 2xx responses. Non-2xx responses throw `FunctionsError.httpError(code:data:)` before the closure executes. Error handling for HTTP failures (401, 403 scan_limit_reached, etc.) must happen in a `catch FunctionsError` block wrapping the `invoke` call, parsing the error body from the `data` parameter of `FunctionsError.httpError`.
 
 ### Not Yet Done
 
