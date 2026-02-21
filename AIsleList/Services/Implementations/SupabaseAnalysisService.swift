@@ -100,6 +100,9 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
             // The SDK throws FunctionsError.httpError for non-2xx before the
             // decode closure runs, so HTTP-level errors must be caught here.
             if case .httpError(let code, let data) = error {
+                if code == 401 {
+                    throw SupabaseAnalysisError.notAuthenticated
+                }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     if code == 403, (json["error"] as? String) == "scan_limit_reached" {
                         throw SupabaseAnalysisError.scanLimitReached(
@@ -107,19 +110,12 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
                             scanLimit: json["scanLimit"] as? Int ?? 3
                         )
                     }
-                    if code == 401 {
-                        throw SupabaseAnalysisError.notAuthenticated
-                    }
                     if let errorMsg = json["error"] as? String {
                         throw SupabaseAnalysisError.serverError(errorMsg)
                     }
                 }
                 throw SupabaseAnalysisError.serverError("HTTP \(code)")
             }
-            throw error
-        } catch let error as SupabaseAnalysisError {
-            throw error
-        } catch let error as AnalysisError {
             throw error
         }
     }

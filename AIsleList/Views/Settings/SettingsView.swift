@@ -54,16 +54,6 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
-            .alert("Sign Out Failed", isPresented: Binding(
-                get: { signOutError != nil },
-                set: { if !$0 { signOutError = nil } }
-            )) {
-                Button("OK") { signOutError = nil }
-            } message: {
-                if let error = signOutError {
-                    Text(error)
-                }
-            }
             .onAppear {
                 if !isAuthMode {
                     loadMaskedKey()
@@ -96,6 +86,16 @@ struct SettingsView: View {
                     } catch {
                         signOutError = error.localizedDescription
                     }
+                }
+            }
+            .alert("Sign Out Failed", isPresented: Binding(
+                get: { signOutError != nil },
+                set: { if !$0 { signOutError = nil } }
+            )) {
+                Button("OK") { signOutError = nil }
+            } message: {
+                if let error = signOutError {
+                    Text(error)
                 }
             }
         }
