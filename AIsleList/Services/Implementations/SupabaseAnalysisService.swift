@@ -78,8 +78,10 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
 
     private func invokeFunction(payload: [String: Any]) async throws -> [String: Any] {
         guard let token = authService.accessToken else {
+            print("[SupabaseAnalysis] accessToken is nil, authState: \(authService.authState)")
             throw SupabaseAnalysisError.notAuthenticated
         }
+        print("[SupabaseAnalysis] token present (\(token.prefix(20))...), calling edge function")
 
         let url = authService.functionsBaseURL
             .appendingPathComponent("analyze-grocery-list")
@@ -87,6 +89,7 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(authService.anonKey, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
@@ -104,6 +107,7 @@ final class SupabaseAnalysisService: GroceryAnalysisService {
         case 200...299:
             return json
         case 401:
+            print("[SupabaseAnalysis] server returned 401, body: \(json)")
             throw SupabaseAnalysisError.notAuthenticated
         case 403:
             if (json["error"] as? String) == "scan_limit_reached" {

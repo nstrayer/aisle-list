@@ -10,12 +10,14 @@ final class SupabaseAuthService: AuthService {
 
     private let client: SupabaseClient
     let baseURL: URL
+    let anonKey: String
 
     init?(urlString: String, anonKey: String) {
         guard let url = URL(string: urlString), !anonKey.isEmpty else {
             return nil
         }
         self.baseURL = url
+        self.anonKey = anonKey
         self.client = SupabaseClient(supabaseURL: url, supabaseKey: anonKey)
     }
 
