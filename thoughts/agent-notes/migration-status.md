@@ -41,6 +41,8 @@ Info.plist expanded from camera/photo usage descriptions to full bundle configur
 - Updated agent notes for SettingsView dual-mode and prior commits (commit a3ccbac)
 - Updated agent notes for SDK functions.invoke() migration (commit 570015a)
 - Updated agent notes for decode closure overload (commit c1a628b)
+- Updated agent notes for FunctionsError handling pattern (commit e2f35f7)
+- Updated agent notes for JWT gateway issue, 401 handling, and recent fixes (commit 6b1e965)
 
 ### CloudKit Compatibility Fix
 
